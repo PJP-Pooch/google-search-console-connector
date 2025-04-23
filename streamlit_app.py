@@ -147,43 +147,43 @@ st.dataframe(top_queries.head(50))
 
 keyword_rows = []
 
-    for i, chunk in enumerate(chunks):
-        chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
-        prompt = (
-            "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) "
-            "and a different secondary keyword (highest impressions).\n\n"
-        )
-        for page, group in chunk_df.groupby("page"):
-            top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
-            query_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
-            prompt += (
-    f"Page: {page}\n"
-    f"{query_text}\n"
-    "Primary: \n"
-    "Secondary: \n\n"
+for i, chunk in enumerate(chunks):
+    chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
+    prompt = (
+        "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) "
+        "and a different secondary keyword (highest impressions).\n\n"
+    )
+    for page, group in chunk_df.groupby("page"):
+        top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
+        query_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
+        prompt += (
+f"Page: {page}\n"
+f"{query_text}\n"
+"Primary: \n"
+"Secondary: \n\n"
 )
 
-        with st.spinner(f"🔍 Generating keywords for chunk {i+1}/{len(chunks)}..."):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                result = response.choices[0].message.content.strip()
-            except Exception as e:
-                st.error(f"❌ Error in chunk {i+1}: {e}")
-                continue
+    with st.spinner(f"🔍 Generating keywords for chunk {i+1}/{len(chunks)}..."):
+        try:
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            result = response.choices[0].message.content.strip()
+        except Exception as e:
+            st.error(f"❌ Error in chunk {i+1}: {e}")
+            continue
 
-        for block in result.split("Page: ")[1:]:
-            lines = block.strip().splitlines()
-            page = lines[0].strip()
-            primary = secondary = ""
-            for line in lines:
-                if line.lower().startswith("primary:"):
-                    primary = line.split(":", 1)[1].strip()
-                elif line.lower().startswith("secondary:"):
-                    secondary = line.split(":", 1)[1].strip()
-            keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+    for block in result.split("Page: ")[1:]:
+        lines = block.strip().splitlines()
+        page = lines[0].strip()
+        primary = secondary = ""
+        for line in lines:
+            if line.lower().startswith("primary:"):
+                primary = line.split(":", 1)[1].strip()
+            elif line.lower().startswith("secondary:"):
+                secondary = line.split(":", 1)[1].strip()
+        keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
 
     
 # ✅ Apply page filter BEFORE grouping
