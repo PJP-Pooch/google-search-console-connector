@@ -3,6 +3,7 @@ import pandas as pd
 import searchconsole
 from google_auth_oauthlib.flow import Flow
 from apiclient.discovery import build
+import openai
 from openai import OpenAI
 
 # Initialize session state for filters
@@ -39,6 +40,11 @@ def apply_query_filter(df, filter_type, filter_value):
         return df[df["query"].str.match(filter_value)]
     return df
 
+def chunk_dict(d, size):
+    items = list(d.items())
+    for i in range(0, len(items), size):
+        yield dict(items[i:i + size])
+
 st.title("🔐 GSC Keyword Extractor (Manual Auth Flow)")
 
 # Load OAuth credentials
@@ -62,6 +68,7 @@ flow = Flow.from_client_config(
 )
 
 auth_url, _ = flow.authorization_url(prompt="consent")
+
 st.markdown("### Step 1: Sign in with Google")
 st.markdown(f"[🔗 Click here to authorize with Google]({auth_url})", unsafe_allow_html=True)
 
@@ -82,6 +89,22 @@ if code_input and "account" not in st.session_state:
         st.exception(e)
         st.stop()
 
+# ✅ Advanced Page Filter Options
+st.sidebar.markdown("### 🔍 Page Filter")
+
+# 🔄 Optional Reset Filters Button
+if st.sidebar.button("🔁 Reset Filters"):
+    st.session_state["page_filter_value"] = ""
+    st.session_state["query_filter_value"] = ""
+
+page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
+page_filter_value = st.sidebar.text_input("Page filter value", st.session_state["page_filter_value"])
+
+# ✅ Advanced Query Filter Options
+st.sidebar.markdown("### 🔍 Query Filter")
+query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
+query_filter_value = st.sidebar.text_input("Query filter value", st.session_state["query_filter_value"])
+
 if "account" in st.session_state:
     def get_sites(account):
         return account.service.sites().list().execute()
@@ -89,22 +112,6 @@ if "account" in st.session_state:
     site_list = get_sites(st.session_state["account"])
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
     selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
-    
-    # ✅ Advanced Page Filter Options
-    st.sidebar.markdown("### 🔍 Page Filter")
-    
-    # 🔄 Optional Reset Filters Button
-    if st.sidebar.button("🔁 Reset Filters"):
-        st.session_state["page_filter_value"] = ""
-        st.session_state["query_filter_value"] = ""
-    
-    page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
-    page_filter_value = st.sidebar.text_input("Page filter value", st.session_state["page_filter_value"])
-    
-    # ✅ Advanced Query Filter Options
-    st.sidebar.markdown("### 🔍 Query Filter")
-    query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
-    query_filter_value = st.sidebar.text_input("Query filter value", st.session_state["query_filter_value"])
     
     # Date range presets
     timescale = st.selectbox("Date range", [
@@ -123,6 +130,7 @@ if "account" in st.session_state:
     if st.button("📊 Fetch GSC Data"):
         with st.spinner("Fetching from Google Search Console..."):
             webproperty = st.session_state["account"][selected_site]
+            
             df = (
                 webproperty.query.range("today", days=days)
                 .dimension("page", "query")
@@ -130,14 +138,14 @@ if "account" in st.session_state:
                 .to_dataframe()
             )
             
-            # Apply filters using the proper functions
+            # Apply filters
             df = apply_page_filter(df, page_filter_type, page_filter_value)
             df = apply_query_filter(df, query_filter_type, query_filter_value)
             
             if df.empty:
                 st.warning("No data returned. Adjust your filters.")
                 st.stop()
-            
+                
             st.session_state["gsc_data"] = df
             st.success("✅ GSC data fetched!")
             st.dataframe(df.head(50))
@@ -163,21 +171,17 @@ if "account" in st.session_state:
                     .reset_index(drop=True)
                 )
                 
-                # GPT chunking logic
-                def chunk_pages(pages, chunk_size=25):
-                    for i in range(0, len(pages), chunk_size):
-                        yield pages[i:i+chunk_size]
-                
                 # Prepare page:queries dict
                 page_queries = {}
-                for page, group in top_queries.groupby("page"):
-                    queries = group["query"].tolist()
-                    page_queries[page] = queries
+                for _, row in top_queries.iterrows():
+                    if row["page"] not in page_queries:
+                        page_queries[row["page"]] = []
+                    page_queries[row["page"]].append(row["query"])
                 
-                gpt_results = []
-                for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
+                keyword_rows = []
+                for chunk in chunk_dict(page_queries, 25):
                     prompt = "You are an SEO expert. For each page below, choose the best primary keyword (the one with highest clicks) and a secondary keyword (a different one with the highest impressions).\n\n"
-                    for page, queries in chunk:
+                    for page, queries in chunk.items():
                         prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
                     
                     try:
@@ -185,38 +189,45 @@ if "account" in st.session_state:
                             model="gpt-3.5-turbo",
                             messages=[{"role": "user", "content": prompt}]
                         )
-                        gpt_results.append(response.choices[0].message.content.strip())
-                    except Exception as e:
-                        st.error(f"❌ GPT error in chunk {i+1}: {e}")
-                        continue
-                
-                # Parse GPT result into DataFrame
-                keyword_rows = []
-                page = None
-                primary = None
-                secondary = None
-                
-                for chunk in gpt_results:
-                    for line in chunk.split("\n"):
-                        if line.strip().startswith("Page:"):
-                            if page and primary and secondary:
-                                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-                            page = line.replace("Page:", "").strip()
-                            primary = None
-                            secondary = None
-                        elif line.strip().startswith("Primary:"):
-                            primary = line.replace("Primary:", "").strip()
-                        elif line.strip().startswith("Secondary:"):
-                            secondary = line.replace("Secondary:", "").strip()
-                            if page and primary and secondary:
-                                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-                                page = None
+                        result = response.choices[0].message.content.strip()
+                        
+                        current_page = None
+                        primary = None
+                        secondary = None
+                        
+                        for line in result.split("\n"):
+                            if line.strip().startswith("Page:"):
+                                # Save previous entry if we have one
+                                if current_page and primary and secondary:
+                                    keyword_rows.append({
+                                        "page": current_page, 
+                                        "primary_keyword": primary, 
+                                        "secondary_keyword": secondary
+                                    })
+                                
+                                current_page = line.replace("Page:", "").strip()
                                 primary = None
                                 secondary = None
-                
-                # Add the last entry if it exists
-                if page and primary and secondary:
-                    keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+                            elif line.strip().startswith("Primary:"):
+                                primary = line.replace("Primary:", "").strip()
+                            elif line.strip().startswith("Secondary:"):
+                                secondary = line.replace("Secondary:", "").strip()
+                                
+                                # Save entry if we have a complete set
+                                if current_page and primary and secondary:
+                                    keyword_rows.append({
+                                        "page": current_page, 
+                                        "primary_keyword": primary, 
+                                        "secondary_keyword": secondary
+                                    })
+                                    
+                                    # Reset for next entry
+                                    current_page = None
+                                    primary = None
+                                    secondary = None
+                    except Exception as e:
+                        st.error(f"❌ GPT error in chunk: {e}")
+                        continue
                 
                 df_keywords = pd.DataFrame(keyword_rows)
                 
