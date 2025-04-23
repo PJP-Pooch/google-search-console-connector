@@ -93,7 +93,7 @@ elif timescale == "Last 12 months":
     days = -365
 
 if st.button("📊 Fetch and Generate Keywords"):
-with st.spinner("⚙️ Generating keywords..."):
+    with st.spinner("⚙️ Generating keywords..."):
     webproperty = account[selected_site]
     df = (
         webproperty.query.range("today", days=days)
