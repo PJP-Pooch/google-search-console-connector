@@ -62,6 +62,9 @@ if not openai_key:
     st.stop()
 client = OpenAI(api_key=openai_key)
 
+
+meta_model = st.sidebar.selectbox("🤖 Meta Generation Model", ["gpt-4", "gpt-3.5-turbo"], index=0)
+
 # === GSC Property and Date Selection
 account = st.session_state["account"]
 site_list = account.service.sites().list().execute()
@@ -73,15 +76,15 @@ days_map = {"Last 7 days": 7, "Last 28 days": 28, "Last 3 months": 91}
 start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
-st.markdown("### 🔍 Optional Filters")
+with st.expander("🔍 Optional Filters", expanded=False):
 
 # === Page filters
-page_filter_type = st.selectbox("Page Filter Type", ["None", "Contains", "Starts with", "Ends with", "Regex match"])
-page_filter_value = st.text_input("Page Filter Value")
+    page_filter_type = st.selectbox("Page Filter Type", ["None", "Contains", "Starts with", "Ends with", "Regex match"])
+    page_filter_value = st.text_input("Page Filter Value")
 
 # === Query exclusion
-query_exclude_type = st.selectbox("Exclude Queries That", ["None", "Contains", "Regex match", "Doesn't match"])
-query_exclude_value = st.text_input("Query Exclusion Value")
+    query_exclude_type = st.selectbox("Exclude Queries That", ["None", "Contains", "Regex match", "Doesn't match"])
+    query_exclude_value = st.text_input("Query Exclusion Value")
 
 # === Fetch and Generate
 if st.button("📊 Fetch and Generate Keywords & Meta"):
@@ -136,7 +139,9 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
         prompt = (
             "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) "
-            "and a different secondary keyword (highest impressions).\n\n"
+            "and a different secondary keyword (highest impressions).
+
+"
         )
         for page, group in chunk_df.groupby("page"):
             top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
@@ -147,7 +152,6 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
     "Primary: \n"
     "Secondary: \n\n"
 )
-
 
         with st.spinner(f"🔍 Generating keywords for chunk {i+1}/{len(chunks)}..."):
             try:
@@ -176,26 +180,46 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
 
     # === Meta Title & Description Generation (chunked)
     meta_rows = []
-    chunks = [df_keywords.iloc[i:i + 10] for i in range(0, len(df_keywords), 10)]
+    chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 10)]
 
     for i, chunk in enumerate(chunks):
-        meta_prompt = """For each page and keywords below, generate a meta title under 70 characters ending with '| Pooch & Mutt', and a meta description under 160 characters including both keywords and a CTA."""
+        meta_prompt = "For each page and keywords below, generate a meta title under 70 characters ending with '| Pooch & Mutt', and a meta description under 160 characters including both keywords and a CTA.
+
+"
         for _, row in chunk.iterrows():
             meta_prompt += (
-                f"Page: {row['page']}"
-                f"Primary: {row['primary_keyword']}"
-                f"Secondary: {row['secondary_keyword']}"
-                f"Title: "
-                f"Description: "
+                f"Page: {row['page']}
+"
+                f"Primary: {row['primary_keyword']}
+"
+                f"Secondary: {row['secondary_keyword']}
+"
+                f"Title: 
+"
+                f"Description: 
+
+"
             )
 
-        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}..."):
+        with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
             try:
                 response = client.chat.completions.create(
-                    model="gpt-4",
-                    messages=[{"role": "user", "content": meta_prompt}]
+                    model=meta_model,
+                    messages=[{\"role\": \"user\", \"content\": meta_prompt}]
                 )
                 result = response.choices[0].message.content.strip()
+            except Exception as e:
+                st.warning(f\"Retrying due to error in meta chunk {i+1}...\")
+                try:
+                    time.sleep(5)
+                    response = client.chat.completions.create(
+                        model=meta_model,
+                        messages=[{\"role\": \"user\", \"content\": meta_prompt}]
+                    )
+                    result = response.choices[0].message.content.strip()
+                except Exception as e2:
+                    st.error(f\"❌ Final failure in meta chunk {i+1}: {e2}\")
+                    continue
             except Exception as e:
                 st.error(f"❌ Error in meta chunk {i+1}: {e}")
                 continue
