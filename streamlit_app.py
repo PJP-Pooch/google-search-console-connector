@@ -186,21 +186,18 @@ For each page and keywords below, generate a meta title under 70 characters endi
 and a meta description under 160 characters including both keywords and a call to action.
 """
 
-
-"
         for _, row in chunk.iterrows():
             meta_prompt += (
                 f"Page: {row['page']}
-"
+
                 f"Primary: {row['primary_keyword']}
-"
+
                 f"Secondary: {row['secondary_keyword']}
-"
+
                 f"Title: 
-"
+
                 f"Description: 
 
-"
             )
 
         with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
