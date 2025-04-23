@@ -214,7 +214,7 @@ and a meta description under 160 characters including both keywords and a call t
                     )
                     result = response.choices[0].message.content.strip()
                 except Exception as e2:
-                    st.error(f\"❌ Final failure in meta chunk {i+1}: {e2}\")
+                    st.error(f"❌ Final failure in meta chunk {i+1}: {e2}")
                     continue
             except Exception as e:
                 st.error(f"❌ Error in meta chunk {i+1}: {e}")
