@@ -54,7 +54,7 @@ if submit_code and auth_code:
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
         st.success("✅ Successfully authenticated with Google!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error("❌ Google auth failed. Please double-check the code and try again.")
         st.exception(e)
