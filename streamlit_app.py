@@ -185,9 +185,56 @@ if page_filter_value:
     elif page_filter_type == "regex match":
         df = df[df["page"].str.match(page_filter_value)]
 
+
+# 🔍 Query Filter Options
+query_filter_value = st.sidebar.text_input("Exclude Queries Containing", "")
+
+# ✅ Apply page filter BEFORE keyword extraction
+
+keyword_rows = []
+
+# Group by page and pick top queries by clicks+impressions
+
+# 🧪 Preview of top queries per page (before primary/secondary selection)
+st.subheader("🔍 Preview: Top Queries by Page")
+st.dataframe(top_queries.head(50))
+
+top_queries = (
+    df.groupby("page")
+    .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
+    .reset_index(drop=True)
+)
+
+for page, group in top_queries.groupby("page"):
+    group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
+    primary = group_sorted.iloc[0]["query"] if not group_sorted.empty else ""
+
+    secondary = ""
+    for _, row in group_sorted.iterrows():
+        if row["query"] != primary:
+            secondary = row["query"]
+            break
+
+    keyword_rows.append({
+        "page": page,
+        "primary_keyword": primary,
+        "secondary_keyword": secondary,
+    })
+
 df_keywords = pd.DataFrame(keyword_rows)
 
+
+
 st.success("✅ Primary and secondary keywords generated.")
-st.dataframe(df_keywords)
+
+# 🎨 Highlight branded keywords (e.g. terms containing "pooch")
+def highlight_brand_terms(val):
+    if isinstance(val, str) and "pooch" in val.lower():
+        return "background-color: #ffe0e0"  # light red for branded terms
+    return ""
+
+styled_df = df_keywords.style.applymap(highlight_brand_terms, subset=["primary_keyword", "secondary_keyword"])
+
+st.dataframe(styled_df)
 csv = df_keywords.to_csv(index=False)
 st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
