@@ -50,7 +50,8 @@ if code and "account" not in st.session_state:
         st.stop()
 
 if "account" not in st.session_state:
-    st.markdown(f"[🔐 Connect to Google Search Console]({auth_url})", unsafe_allow_html=True)
+    st.markdown("### Step 1: Connect to Google Search Console")
+    st.markdown(f"[🔐 Click here to authorize with Google]({auth_url})", unsafe_allow_html=True)
     st.stop()
 
 account = st.session_state["account"]
