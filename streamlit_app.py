@@ -139,9 +139,7 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
         prompt = (
             "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) "
-            "and a different secondary keyword (highest impressions).
-
-"
+            "and a different secondary keyword (highest impressions).\n\n"
         )
         for page, group in chunk_df.groupby("page"):
             top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
