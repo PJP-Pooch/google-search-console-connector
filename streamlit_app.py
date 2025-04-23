@@ -46,7 +46,7 @@ if code_input and "account" not in st.session_state:
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
         st.success("✅ Google authentication successful!")
-        st.experimental_rerun()
+        st.rerun()
     except Exception as e:
         st.error("❌ Authentication failed. Please check your code.")
         st.exception(e)
