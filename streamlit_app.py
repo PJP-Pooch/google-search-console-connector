@@ -5,6 +5,16 @@ import searchconsole
 from google_auth_oauthlib.flow import Flow
 from apiclient.discovery import build
 
+
+import openai
+
+# 🔑 Require OpenAI API Key
+openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
+if not openai_api_key:
+    st.warning("Please enter your OpenAI API Key to proceed.")
+    st.stop()
+openai.api_key = openai_api_key
+
 st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 st.title("🔐 GSC Keyword Extractor (Manual Auth Flow)")
 
@@ -133,7 +143,45 @@ query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
         st.subheader("🔍 Preview: Top Queries by Page")
         st.dataframe(top_queries.head(50))
 
+        # 🔄 Use OpenAI GPT to assign primary and secondary keywords
+        def chunk_pages(pages, chunk_size=25):
+            for i in range(0, len(pages), chunk_size):
+                yield pages[i:i+chunk_size]
+
+        # Prepare page:queries dict
+        page_queries = {}
+        for page, group in top_queries.groupby("page"):
+            queries = group.sort_values(by=["clicks", "impressions"], ascending=False)["query"].head(5).tolist()
+            page_queries[page] = queries
+
+        gpt_results = []
+        for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
+            prompt = "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"
+            for page, queries in chunk:
+                prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
+
+            try:
+                response = openai.ChatCompletion.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                gpt_results.append(response.choices[0].message.content.strip())
+            except Exception as e:
+                st.error(f"❌ GPT error in chunk {i+1}: {e}")
+                continue
+
+        # Parse GPT result into DataFrame
         keyword_rows = []
+        for chunk in gpt_results:
+            for line in chunk.split("\n"):
+                if line.strip().startswith("Page:"):
+                    page = line.replace("Page:", "").strip()
+                elif line.strip().startswith("Primary:"):
+                    primary = line.replace("Primary:", "").strip()
+                elif line.strip().startswith("Secondary:"):
+                    secondary = line.replace("Secondary:", "").strip()
+                    keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+        df_keywords = pd.DataFrame(keyword_rows)
         for page, group in top_queries.groupby("page"):
             group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
             primary = group_sorted.iloc[0]["query"] if not group_sorted.empty else ""
