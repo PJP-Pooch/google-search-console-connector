@@ -188,15 +188,15 @@ and a meta description under 160 characters including both keywords and a call t
 
         for _, row in chunk.iterrows():
             meta_prompt += (
-                f"Page: {row['page']}
+                f"Page: {row['page']}"
 
-                f"Primary: {row['primary_keyword']}
+                f"Primary: {row['primary_keyword']}"
 
-                f"Secondary: {row['secondary_keyword']}
+                f"Secondary: {row['secondary_keyword']}"
 
-                f"Title: 
+                f"Title: "
 
-                f"Description: 
+                f"Description: "
 
             )
 
