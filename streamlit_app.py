@@ -174,8 +174,8 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
             keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
 
     df_keywords = pd.DataFrame(keyword_rows)
-st.success("✅ Keywords generated. Generating meta titles and descriptions...")
-df_meta = pd.DataFrame(columns=["page", "meta_title", "meta_description"])  # Safe initialization
+    st.success("✅ Keywords generated. Generating meta titles and descriptions...")
+    df_meta = pd.DataFrame(columns=["page", "meta_title", "meta_description"])  # Safe initialization
     st.success("✅ Keywords generated. Generating meta titles and descriptions...")
 
     # === Meta Title & Description Generation (chunked)
