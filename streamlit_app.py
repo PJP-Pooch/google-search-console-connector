@@ -189,15 +189,10 @@ and a meta description under 160 characters including both keywords and a call t
         for _, row in chunk.iterrows():
             meta_prompt += (
                 f"Page: {row['page']}"
-
                 f"Primary: {row['primary_keyword']}"
-
                 f"Secondary: {row['secondary_keyword']}"
-
                 f"Title: "
-
                 f"Description: "
-
             )
 
         with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}"):
@@ -209,16 +204,16 @@ and a meta description under 160 characters including both keywords and a call t
 
                 result = response.choices[0].message.content.strip()
             except Exception as e:
-                st.warning(f\"Retrying due to error in meta chunk {i+1}...\")
+                st.warning(f"Retrying due to error in meta chunk {i+1}...")
                 try:
                     time.sleep(5)
                     response = client.chat.completions.create(
                         model=meta_model,
-                        messages=[{\"role\": \"user\", \"content\": meta_prompt}]
+                        messages=[{"role": "user", "content": meta_prompt}]  # ✅ CORRECT
                     )
                     result = response.choices[0].message.content.strip()
                 except Exception as e2:
-                    st.error(f\"❌ Final failure in meta chunk {i+1}: {e2}\")
+                    st.error(f"❌ Final failure in meta chunk {i+1}: {e2}")
                     continue
             except Exception as e:
                 st.error(f"❌ Error in meta chunk {i+1}: {e}")
