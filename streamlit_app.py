@@ -236,7 +236,19 @@ and a meta description under 160 characters including both keywords and a call t
             })
 
     df_meta = pd.DataFrame(meta_rows)
-    final_df = pd.merge(df_keywords, df_meta, on="page", how="left")
+
+    st.write("🔍 df_keywords columns:", df_keywords.columns.tolist())
+    st.write("🔍 df_meta columns:", df_meta.columns.tolist())
+
+    
+    if "page" in df_keywords.columns and "page" in df_meta.columns:
+        final_df = pd.merge(df_keywords, df_meta, on="page", how="left")
+    else:
+        st.warning("❌ Cannot merge — 'page' column missing in one of the dataframes.")
+        st.write("✅ Fallback to just keywords")
+        final_df = df_keywords.copy()
+        final_df["meta_title"] = ""
+        final_df["meta_description"] = ""
 
     st.subheader("📝 Preview Meta Titles & Descriptions")
     st.dataframe(final_df)
