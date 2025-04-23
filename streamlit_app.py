@@ -86,11 +86,14 @@ if code_input and "account" not in st.session_state:
         st.stop()
 
 if "account" in st.session_state:
+    # Get sites without caching the account object which isn't hashable
+    account = st.session_state["account"]
+    
     @st.cache_data(show_spinner=False)
-    def get_sites(account):
+    def get_sites():
         return account.service.sites().list().execute()
     
-    site_list = get_sites(st.session_state["account"])
+    site_list = get_sites()
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
     selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
     
