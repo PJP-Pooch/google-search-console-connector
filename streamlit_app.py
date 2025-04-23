@@ -173,13 +173,13 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
                     secondary = line.split(":", 1)[1].strip()
             keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
 
-    df_keywords = pd.DataFrame(keyword_rows)
-    st.success("✅ Keywords generated. Generating meta titles and descriptions...")
-
-    df_meta = pd.DataFrame()  # ✅ Add this here
-
-    chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 5)]
-
+            df_keywords = pd.DataFrame(keyword_rows)
+            st.success("✅ Keywords generated. Generating meta titles and descriptions...")
+    
+            # ✅ Define df_meta so it's always available even if GPT fails
+            df_meta = pd.DataFrame(columns=["page", "meta_title", "meta_description"])
+    
+            chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 5)]
 
 
     for i, chunk in enumerate(chunks):
