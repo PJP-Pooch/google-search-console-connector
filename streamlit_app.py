@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import re
 
 st.set_page_config(layout="wide", page_title="GSC AI Meta Generator", page_icon="🧠")
-st.title("🧠 GSC: Keywords + Meta Tags + Advanced Filters")
+st.title("🧠 GSC AI Meta Generator")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
