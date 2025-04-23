@@ -61,65 +61,66 @@ page_filter_value = st.sidebar.text_input("Page filter value", "/products")
 st.sidebar.markdown("### 🔍 Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
 query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
-    # Date range presets
-    timescale = st.selectbox("Date range", [
-        "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
-    ])
-    if timescale == "Last 7 days":
-        days = -7
-    elif timescale == "Last 28 days":
-        days = -28
-    elif timescale == "Last 3 months":
-        days = -90
-    elif timescale == "Last 12 months":
-        days = -365
-    if st.button("📊 Fetch and Generate Keywords"):
-    with st.spinner("⚙️ Generating keywords..."):
-        webproperty = account[selected_site]
-        df = (
-            webproperty.query.range("today", days=days)
-            .dimension("page", "query")
-            .get()
-            .to_dataframe()
-        )
-                # ✅ Apply page filter
-        if page_filter_value:
-            if page_filter_type == "contains":
-                df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
-            elif page_filter_type == "starts with":
-                df = df[df["page"].str.startswith(page_filter_value)]
-            elif page_filter_type == "ends with":
-                df = df[df["page"].str.endswith(page_filter_value)]
-            elif page_filter_type == "regex match":
-                df = df[df["page"].str.match(page_filter_value)]
-            elif page_filter_type == "doesn’t match regex":
-                df = df[~df["page"].str.match(page_filter_value)]
-        # ✅ Apply query filter
-        if query_filter_value:
-            if query_filter_type == "contains":
-                df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
-            elif query_filter_type == "starts with":
-                df = df[~df["query"].str.startswith(query_filter_value)]
-            elif query_filter_type == "ends with":
-                df = df[~df["query"].str.endswith(query_filter_value)]
-            elif query_filter_type == "regex match":
-                df = df[~df["query"].str.match(query_filter_value)]
-            elif query_filter_type == "doesn’t match regex":
-                df = df[df["query"].str.match(query_filter_value)]
-        if df.empty:
-            st.warning("No data returned. Adjust your filters.")
-            st.stop()
-        top_queries = (
-            df.groupby("page")
-            .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
-            .reset_index(drop=True)
-        )
-        st.subheader("🔍 Preview: Top Queries by Page")
-        st.dataframe(top_queries.head(50))
-        # 🔄 Use OpenAI GPT to assign primary and secondary keywords
-        def chunk_pages(pages, chunk_size=25):
-            for i in range(0, len(pages), chunk_size):
-                yield pages[i:i+chunk_size]
+# Date range presets
+timescale = st.selectbox("Date range", [
+    "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
+])
+if timescale == "Last 7 days":
+    days = -7
+elif timescale == "Last 28 days":
+    days = -28
+elif timescale == "Last 3 months":
+    days = -90
+elif timescale == "Last 12 months":
+    days = -365
+if st.button("📊 Fetch and Generate Keywords"):
+with st.spinner("⚙️ Generating keywords..."):
+    webproperty = account[selected_site]
+    df = (
+        webproperty.query.range("today", days=days)
+        .dimension("page", "query")
+        .get()
+        .to_dataframe()
+    )
+            # ✅ Apply page filter
+    if page_filter_value:
+        if page_filter_type == "contains":
+            df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
+        elif page_filter_type == "starts with":
+            df = df[df["page"].str.startswith(page_filter_value)]
+        elif page_filter_type == "ends with":
+            df = df[df["page"].str.endswith(page_filter_value)]
+        elif page_filter_type == "regex match":
+            df = df[df["page"].str.match(page_filter_value)]
+        elif page_filter_type == "doesn’t match regex":
+            df = df[~df["page"].str.match(page_filter_value)]
+    # ✅ Apply query filter
+    if query_filter_value:
+        if query_filter_type == "contains":
+            df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
+        elif query_filter_type == "starts with":
+            df = df[~df["query"].str.startswith(query_filter_value)]
+        elif query_filter_type == "ends with":
+            df = df[~df["query"].str.endswith(query_filter_value)]
+        elif query_filter_type == "regex match":
+            df = df[~df["query"].str.match(query_filter_value)]
+        elif query_filter_type == "doesn’t match regex":
+            df = df[df["query"].str.match(query_filter_value)]
+    if df.empty:
+        st.warning("No data returned. Adjust your filters.")
+        st.stop()
+    top_queries = (
+        df.groupby("page")
+        .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
+        .reset_index(drop=True)
+    )
+    st.subheader("🔍 Preview: Top Queries by Page")
+    st.dataframe(top_queries.head(50))
+    
+    # 🔄 Use OpenAI GPT to assign primary and secondary keywords
+    def chunk_pages(pages, chunk_size=25):
+        for i in range(0, len(pages), chunk_size):
+            yield pages[i:i+chunk_size]
         # Prepare page:queries dict
         page_queries = {}
         for page, group in top_queries.groupby("page"):
