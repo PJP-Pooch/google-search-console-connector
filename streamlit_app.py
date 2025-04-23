@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import re
 
 st.set_page_config(layout="wide", page_title="GSC AI Meta Generator", page_icon="🧠")
-st.title("🧠 GSC AI Meta Generator")
+st.title("🧠 GSC: Keywords + Meta Tags + Advanced Filters")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -173,14 +173,14 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
                     secondary = line.split(":", 1)[1].strip()
             keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
 
-            df_keywords = pd.DataFrame(keyword_rows)
-            st.success("✅ Keywords generated. Generating meta titles and descriptions...")
-    
-            # ✅ Define df_meta so it's always available even if GPT fails
-            df_meta = pd.DataFrame(columns=["page", "meta_title", "meta_description"])
-    
-            chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 5)]
+    df_keywords = pd.DataFrame(keyword_rows)
+st.success("✅ Keywords generated. Generating meta titles and descriptions...")
+df_meta = pd.DataFrame(columns=["page", "meta_title", "meta_description"])  # Safe initialization
+    st.success("✅ Keywords generated. Generating meta titles and descriptions...")
 
+    # === Meta Title & Description Generation (chunked)
+    meta_rows = []
+    chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 10)]
 
     for i, chunk in enumerate(chunks):
         meta_prompt = """
@@ -188,35 +188,41 @@ For each page and keywords below, generate a meta title under 70 characters endi
 and a meta description under 160 characters including both keywords and a call to action.
 """
 
+
+"
         for _, row in chunk.iterrows():
             meta_prompt += (
-                f"Page: {row['page']}"
-                f"Primary: {row['primary_keyword']}"
-                f"Secondary: {row['secondary_keyword']}"
-                f"Title: "
-                f"Description: "
+                f"Page: {row['page']}
+"
+                f"Primary: {row['primary_keyword']}
+"
+                f"Secondary: {row['secondary_keyword']}
+"
+                f"Title: 
+"
+                f"Description: 
+
+"
             )
 
-        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}"):
+        with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
             try:
                 response = client.chat.completions.create(
-                model=meta_model,
-                messages=[{"role": "user", "content": meta_prompt}]  # ✅ CORRECT
+                    model=meta_model,
+                    messages=[{\"role\": \"user\", \"content\": meta_prompt}]
                 )
-
                 result = response.choices[0].message.content.strip()
             except Exception as e:
-                st.warning(f"Retrying due to error in meta chunk {i+1}...")
+                st.warning(f\"Retrying due to error in meta chunk {i+1}...\")
                 try:
                     time.sleep(5)
                     response = client.chat.completions.create(
                         model=meta_model,
-                        messages=[{"role": "user", "content": meta_prompt}]  # ✅ CORRECT
+                        messages=[{\"role\": \"user\", \"content\": meta_prompt}]
                     )
-                    st.text_area(f"🧪 Raw GPT Output for chunk {i+1}", result, height=300)
                     result = response.choices[0].message.content.strip()
                 except Exception as e2:
-                    st.error(f"❌ Final failure in meta chunk {i+1}: {e2}")
+                    st.error(f\"❌ Final failure in meta chunk {i+1}: {e2}\")
                     continue
             except Exception as e:
                 st.error(f"❌ Error in meta chunk {i+1}: {e}")
@@ -238,15 +244,7 @@ and a meta description under 160 characters including both keywords and a call t
             })
 
     df_meta = pd.DataFrame(meta_rows)
-    # 💡 Safe merge with fallback if df_meta is missing or malformed
-if not df_meta.empty and "page" in df_meta.columns:
     final_df = pd.merge(df_keywords, df_meta, on="page", how="left")
-else:
-    st.warning("❌ Meta data was not generated properly — using keyword data only.")
-    final_df = df_keywords.copy()
-    final_df["meta_title"] = ""
-    final_df["meta_description"] = ""
-
 
     st.subheader("📝 Preview Meta Titles & Descriptions")
     st.dataframe(final_df)
