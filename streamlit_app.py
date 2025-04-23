@@ -7,7 +7,7 @@ from apiclient import discovery
 from datetime import datetime, timedelta
 
 st.set_page_config(layout="wide", page_title="Top Queries + AI Keywords CSV", page_icon="🔍")
-st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Structured Output)")
+st.title("🔍 GSC: Top Queries")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
