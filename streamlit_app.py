@@ -204,7 +204,7 @@ and a meta description under 160 characters including both keywords and a call t
             try:
                 response = client.chat.completions.create(
                     model=meta_model,
-                    messages=[{\"role\": \"user\", \"content\": meta_prompt}]
+                    messages=[f"{\"role\": \"user\", \"content\": meta_prompt}"]
                 )
                 result = response.choices[0].message.content.strip()
             except Exception as e:
