@@ -133,7 +133,19 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
     # === Keyword Generation
     pages = list(df_filtered["page"].unique())
     chunks = [pages[i:i + 25] for i in range(0, len(pages), 25)]
-    keyword_rows = []
+    
+# Group by page and pick top queries by clicks+impressions
+top_queries = (
+    df.groupby("page")
+    .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
+    .reset_index(drop=True)
+)
+
+# 🧪 Preview of top queries per page (before primary/secondary selection)
+st.subheader("🔍 Preview: Top Queries by Page")
+st.dataframe(top_queries.head(50))
+
+keyword_rows = []
 
     for i, chunk in enumerate(chunks):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
@@ -191,13 +203,8 @@ query_filter_value = st.sidebar.text_input("Exclude Queries Containing", "")
 
 # ✅ Apply page filter BEFORE keyword extraction
 
-keyword_rows = []
 
 # Group by page and pick top queries by clicks+impressions
-
-# 🧪 Preview of top queries per page (before primary/secondary selection)
-st.subheader("🔍 Preview: Top Queries by Page")
-
 top_queries = (
     df.groupby("page")
     .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
@@ -208,6 +215,17 @@ top_queries = (
 st.subheader("🔍 Preview: Top Queries by Page")
 st.dataframe(top_queries.head(50))
 
+keyword_rows = []
+
+# Group by page and pick top queries by clicks+impressions
+
+
+
+top_queries = (
+    df.groupby("page")
+    .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
+    .reset_index(drop=True)
+)
 
 for page, group in top_queries.groupby("page"):
     group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
