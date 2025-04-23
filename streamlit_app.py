@@ -1,4 +1,4 @@
-# streamlit_app.py — Improved GSC Connector + Meta Generator
+# streamlit_app.py — Improved GSC Connector + Meta Generator with Debugging
 
 import streamlit as st
 import pandas as pd
@@ -15,6 +15,8 @@ st.title("🔍 GSC Meta Title & Description Generator")
 client_id = str(st.secrets["installed"]["client_id"])
 client_secret = str(st.secrets["installed"]["client_secret"])
 redirect_uri = str(st.secrets["installed"]["redirect_uris"][0])
+
+st.write(f"🔧 Using redirect URI: {redirect_uri}")  # Debug log
 
 credentials = {
     "installed": {
@@ -44,6 +46,7 @@ if code and "account" not in st.session_state:
         service = discovery.build("webmasters", "v3", credentials=credentials)
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
+        st.experimental_set_query_params()  # Clear ?code=... from URL
         st.experimental_rerun()  # trigger a clean page reload
     except Exception as e:
         st.error("❌ Google auth failed. Please try again.")
