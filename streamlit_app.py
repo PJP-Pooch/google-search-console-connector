@@ -197,13 +197,17 @@ keyword_rows = []
 
 # 🧪 Preview of top queries per page (before primary/secondary selection)
 st.subheader("🔍 Preview: Top Queries by Page")
-st.dataframe(top_queries.head(50))
 
 top_queries = (
     df.groupby("page")
     .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
     .reset_index(drop=True)
 )
+
+# 🧪 Preview of top queries per page (before primary/secondary selection)
+st.subheader("🔍 Preview: Top Queries by Page")
+st.dataframe(top_queries.head(50))
+
 
 for page, group in top_queries.groupby("page"):
     group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
