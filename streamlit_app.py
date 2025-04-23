@@ -56,119 +56,124 @@ page_filter_value = st.sidebar.text_input("Page filter value", "/products")
 st.sidebar.markdown("### 🔍 Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
 query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
-
-# Date range presets
-timescale = st.selectbox("Date range", [
-    "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
-])
-if timescale == "Last 7 days":
-    days = -7
-elif timescale == "Last 28 days":
-    days = -28
-elif timescale == "Last 3 months":
-    days = -90
-elif timescale == "Last 12 months":
-    days = -365
-if st.button("📊 Fetch and Generate Keywords"):
-    with st.spinner("⚙️ Generating keywords..."):
-        webproperty = account[selected_site]
-        df = (
-            webproperty.query.range("today", days=days)
-            .dimension("page", "query")
-            .get()
-            .to_dataframe()
-        )
-        # ✅ Apply page filter
-        if page_filter_value:
-            if page_filter_type == "contains":
-                df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
-            elif page_filter_type == "starts with":
-                df = df[df["page"].str.startswith(page_filter_value)]
-            elif page_filter_type == "ends with":
-                df = df[df["page"].str.endswith(page_filter_value)]
-            elif page_filter_type == "regex match":
-                df = df[df["page"].str.match(page_filter_value)]
-            elif page_filter_type == "doesn’t match regex":
-                df = df[~df["page"].str.match(page_filter_value)]
-        # ✅ Apply query filter
-        if query_filter_value:
-            if query_filter_type == "contains":
-                df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
-            elif query_filter_type == "starts with":
-                df = df[~df["query"].str.startswith(query_filter_value)]
-            elif query_filter_type == "ends with":
-                df = df[~df["query"].str.endswith(query_filter_value)]
-            elif query_filter_type == "regex match":
-                df = df[~df["query"].str.match(query_filter_value)]
-            elif query_filter_type == "doesn’t match regex":
-                df = df[df["query"].str.match(query_filter_value)]
-        if df.empty:
-            st.warning("No data returned. Adjust your filters.")
-            st.stop()
-        top_queries = (
-            df.groupby("page")
-            .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(10))
-            .reset_index(drop=True)
-        )
-        st.subheader("🔍 Preview: Top Queries by Page")
-        st.dataframe(top_queries.head(50))
+    # Date range presets
+    timescale = st.selectbox("Date range", [
+        "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
+    ])
+    if timescale == "Last 7 days":
+        days = -7
+    elif timescale == "Last 28 days":
+        days = -28
+    elif timescale == "Last 3 months":
+        days = -90
+    elif timescale == "Last 12 months":
+        days = -365
     
-# 🔑 Require OpenAI API Key only after GSC data is ready
-openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
-if not openai_api_key:
-    st.warning("Please enter your OpenAI API Key to generate keywords.")
-    st.stop()
-client = OpenAI(api_key=openai_api_key)
-# 🔄 Use OpenAI GPT to assign primary and secondary keywords
-def chunk_pages(pages, chunk_size=25):
-    for i in range(0, len(pages), chunk_size):
-        yield pages[i:i+chunk_size]
-# Prepare page:queries dict
-page_queries = {}
-for page, group in top_queries.groupby("page"):
-    queries = group.sort_values(by=["clicks", "impressions"], ascending=False)["query"].head(5).tolist()
-    page_queries[page] = queries
-gpt_results = []
-for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
-    prompt = "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"
-    for page, queries in chunk:
-        prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
-        )
-        gpt_results.append(response.choices[0].message.content.strip())
-    except Exception as e:
-        st.error(f"❌ GPT error in chunk {i+1}: {e}")
-        continue
-# Parse GPT result into DataFrame
-keyword_rows = []
-for chunk in gpt_results:
-    for line in chunk.split("\n"):
-        if line.strip().startswith("Page:"):
-            page = line.replace("Page:", "").strip()
-        elif line.strip().startswith("Primary:"):
-            primary = line.replace("Primary:", "").strip()
-        elif line.strip().startswith("Secondary:"):
-            secondary = line.replace("Secondary:", "").strip()
-            keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-df_keywords = pd.DataFrame(keyword_rows)
-for page, group in top_queries.groupby("page"):
-    group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
-    primary = group_sorted.iloc[0]["query"] if not group_sorted.empty else ""
-    secondary = ""
-    for _, row in group_sorted.iterrows():
-        if row["query"] != primary:
-            secondary = row["query"]
-            break
-    keyword_rows.append({
-        "page": page,
-        "primary_keyword": primary,
-        "secondary_keyword": secondary,
-    })
-df_keywords = pd.DataFrame(keyword_rows)
-st.subheader("📋 Primary & Secondary Keywords")
-st.dataframe(df_keywords)
-csv = df_keywords.to_csv(index=False)
-st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
+    if st.button("📊 Fetch GSC Data"):
+        with st.spinner("Fetching from Google Search Console..."):
+            webproperty = account[selected_site]
+            df = (
+                webproperty.query.range("today", days=days)
+                .dimension("page", "query")
+                .get()
+                .to_dataframe()
+            )
+
+            if page_filter_value:
+                if page_filter_type == "contains":
+                    df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
+                elif page_filter_type == "starts with":
+                    df = df[df["page"].str.startswith(page_filter_value)]
+                elif page_filter_type == "ends with":
+                    df = df[df["page"].str.endswith(page_filter_value)]
+                elif page_filter_type == "regex match":
+                    df = df[df["page"].str.match(page_filter_value)]
+                elif page_filter_type == "doesn’t match regex":
+                    df = df[~df["page"].str.match(page_filter_value)]
+
+            if query_filter_value:
+                if query_filter_type == "contains":
+                    df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
+                elif query_filter_type == "starts with":
+                    df = df[~df["query"].str.startswith(query_filter_value)]
+                elif query_filter_type == "ends with":
+                    df = df[~df["query"].str.endswith(query_filter_value)]
+                elif query_filter_type == "regex match":
+                    df = df[~df["query"].str.match(query_filter_value)]
+                elif query_filter_type == "doesn’t match regex":
+                    df = df[df["query"].str.match(query_filter_value)]
+
+            if df.empty:
+                st.warning("No data returned. Adjust your filters.")
+                st.stop()
+
+            st.session_state["gsc_data"] = df
+            st.success("✅ GSC data fetched!")
+            st.dataframe(df.head(50))
+
+
+    if "gsc_data" in st.session_state:
+        st.markdown("### Step 2: Generate Keywords with OpenAI")
+        if st.button("✨ Run Keyword Selection"):
+
+                    # 🔑 Require OpenAI API Key only after GSC data is ready
+                    openai_api_key = st.sidebar.text_input("Enter your OpenAI API Key", type="password")
+                    if not openai_api_key:
+                        st.warning("Please enter your OpenAI API Key to generate keywords.")
+                        st.stop()
+                    client = OpenAI(api_key=openai_api_key)
+            
+                    df = st.session_state["gsc_data"]
+            
+                    top_queries = (
+                        df.groupby("page")
+                        .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(5))
+                        .reset_index(drop=True)
+                    )
+            
+                    # GPT chunking logic
+                    def chunk_pages(pages, chunk_size=25):
+                        for i in range(0, len(pages), chunk_size):
+                            yield pages[i:i+chunk_size]
+            
+                    # Prepare page:queries dict
+                    page_queries = {}
+                    for page, group in top_queries.groupby("page"):
+                        queries = group["query"].tolist()
+                        page_queries[page] = queries
+            
+                    gpt_results = []
+                    for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
+                        prompt = "You are an SEO expert. For each page below, choose the best primary keyword (the one with highest clicks) and a secondary keyword (a different one with the highest impressions).\n\n"
+                        for page, queries in chunk:
+                            prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
+            
+                        try:
+                            response = client.chat.completions.create(
+                                model="gpt-3.5-turbo",
+                                messages=[{"role": "user", "content": prompt}]
+                            )
+                            gpt_results.append(response.choices[0].message.content.strip())
+                        except Exception as e:
+                            st.error(f"❌ GPT error in chunk {i+1}: {e}")
+                            continue
+            
+                    # Parse GPT result into DataFrame
+                    keyword_rows = []
+                    for chunk in gpt_results:
+                        for line in chunk.split("\n"):
+                            if line.strip().startswith("Page:"):
+                                page = line.replace("Page:", "").strip()
+                            elif line.strip().startswith("Primary:"):
+                                primary = line.replace("Primary:", "").strip()
+                            elif line.strip().startswith("Secondary:"):
+                                secondary = line.replace("Secondary:", "").strip()
+                                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+                    df_keywords = pd.DataFrame(keyword_rows)
+            
+                    st.subheader("📋 Primary & Secondary Keywords")
+                    st.dataframe(df_keywords)
+            
+                    csv = df_keywords.to_csv(index=False)
+                    st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
+            
