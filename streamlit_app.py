@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from openai import OpenAI
@@ -7,7 +8,7 @@ from apiclient import discovery
 from datetime import datetime, timedelta
 
 st.set_page_config(layout="wide", page_title="Top Queries with AI Keywords", page_icon="🔍")
-st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Bulk Mode)")
+st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Chunked, GPT-3.5)")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -53,7 +54,7 @@ if submit_code and auth_code:
 if "account" not in st.session_state:
     st.stop()
 
-# === OpenAI Key (new client)
+# === OpenAI Key
 openai_key = st.sidebar.text_input("🔑 OpenAI API Key", type="password")
 if not openai_key:
     st.warning("Please enter your OpenAI API Key to continue.")
@@ -71,7 +72,7 @@ days_map = {"Last 7 days": 7, "Last 28 days": 28, "Last 3 months": 91}
 start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
-# === Fetch GSC + Bulk Prompt
+# === Fetch GSC + Chunked OpenAI Calls
 if st.button("📊 Fetch and Generate Keywords"):
     with st.spinner("Fetching GSC data..."):
         webproperty = account[selected_site]
@@ -93,27 +94,42 @@ if st.button("📊 Fetch and Generate Keywords"):
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
         df_filtered = df[df["page"].isin(top_100_pages)].copy()
 
-    with st.spinner("Building prompt and calling OpenAI..."):
-        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
+    st.success("✅ Data fetched. Starting chunked AI keyword generation...")
 
-"""
-        for page, group in df_filtered.groupby("page"):
-            queries = group.sort_values(by=["clicks", "impressions"], ascending=False)[["query", "clicks", "impressions"]]
-            bulk_prompt += f"Page: {page}\n"
-            bulk_prompt += queries.to_string(index=False)
-            bulk_prompt += "\nPrimary: \nSecondary: \n\n"
+    # === Chunk and process
+    pages = list(df_filtered["page"].unique())
+    chunks = [pages[i:i + 25] for i in range(0, len(pages), 25)]
+    all_results = ""
 
+    for i, chunk in enumerate(chunks):
+        chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
+        bulk_prompt = "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
 
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",  # switched to 3.5
-            messages=[{"role": "user", "content": bulk_prompt}]
-        )
-        bulk_result = response.choices[0].message.content.strip()
-    
-    except Exception as e:
-        bulk_result = f"❌ Error during OpenAI request: {e}"
+"
+        for page, group in chunk_df.groupby("page"):
+            sorted_q = group.sort_values(by=["clicks", "impressions"], ascending=False)
+            q_text = sorted_q[["query", "clicks", "impressions"]].to_string(index=False)
+            bulk_prompt += f"Page: {page}
+{q_text}
+Primary: 
+Secondary: 
 
-    st.subheader("📋 AI-Generated Keywords")
-    st.text_area("Output", bulk_result, height=600)
-    st.download_button("📥 Download TXT", bulk_result, "ai_keywords_bulk.txt", "text/plain")
+"
+
+        with st.spinner(f"Calling OpenAI for chunk {i+1} of {len(chunks)}..."):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-3.5-turbo",
+                    messages=[{"role": "user", "content": bulk_prompt}]
+                )
+                chunk_result = response.choices[0].message.content.strip()
+            except Exception as e:
+                chunk_result = f"❌ Error in chunk {i+1}: {e}"
+            all_results += f"
+
+--- Chunk {i+1} ---
+{chunk_result}"
+
+    st.subheader("📋 AI-Generated Keywords (All Chunks Combined)")
+    st.text_area("Results", all_results, height=700)
+    st.download_button("📥 Download TXT", all_results, "ai_keywords_bulk_chunked.txt", "text/plain")
