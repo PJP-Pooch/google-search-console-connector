@@ -1,4 +1,3 @@
-# streamlit_app.py — Improved GSC Connector + Meta Generator with Debugging
 
 import streamlit as st
 import pandas as pd
@@ -27,13 +26,6 @@ credentials = {
         "token_uri": "https://accounts.google.com/o/oauth2/token",
     }
 }
-
-flow = Flow.from_client_config(
-    credentials,
-    scopes=["https://www.googleapis.com/auth/webmasters.readonly"],
-    redirect_uri=redirect_uri,
-)
-auth_url, _ = flow.authorization_url(prompt="consent")
 
 # === Manual OAuth Flow ===
 st.markdown("## 🔐 Google Authentication")
@@ -70,7 +62,6 @@ if submit_code and auth_code:
 
 if "account" not in st.session_state:
     st.stop()
-
 
 # === Property Selection ===
 account = st.session_state["account"]
