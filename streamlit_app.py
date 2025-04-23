@@ -6,9 +6,10 @@ import searchconsole
 from google_auth_oauthlib.flow import Flow
 from apiclient import discovery
 from datetime import datetime, timedelta
+import re
 
 st.set_page_config(layout="wide", page_title="GSC AI Meta Generator", page_icon="🧠")
-st.title("🧠 GSC: Primary & Secondary Keywords + Meta Titles & Descriptions")
+st.title("🧠 GSC: Keywords + Meta Tags + Advanced Filters")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -72,6 +73,16 @@ days_map = {"Last 7 days": 7, "Last 28 days": 28, "Last 3 months": 91}
 start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
+st.markdown("### 🔍 Optional Filters")
+
+# === Page filters
+page_filter_type = st.selectbox("Page Filter Type", ["None", "Contains", "Starts with", "Ends with", "Regex match"])
+page_filter_value = st.text_input("Page Filter Value")
+
+# === Query exclusion
+query_exclude_type = st.selectbox("Exclude Queries That", ["None", "Contains", "Regex match", "Doesn't match"])
+query_exclude_value = st.text_input("Query Exclusion Value")
+
 # === Fetch and Generate
 if st.button("📊 Fetch and Generate Keywords & Meta"):
     with st.spinner("Fetching GSC data..."):
@@ -89,6 +100,26 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
         if df.empty:
             st.warning("No data returned.")
             st.stop()
+
+        # === Apply page-level filter
+        if page_filter_type != "None" and page_filter_value:
+            if page_filter_type == "Contains":
+                df = df[df["page"].str.contains(page_filter_value)]
+            elif page_filter_type == "Starts with":
+                df = df[df["page"].str.startswith(page_filter_value)]
+            elif page_filter_type == "Ends with":
+                df = df[df["page"].str.endswith(page_filter_value)]
+            elif page_filter_type == "Regex match":
+                df = df[df["page"].str.contains(page_filter_value, regex=True)]
+
+        # === Apply query exclusion
+        if query_exclude_type != "None" and query_exclude_value:
+            if query_exclude_type == "Contains":
+                df = df[~df["query"].str.contains(query_exclude_value)]
+            elif query_exclude_type == "Regex match":
+                df = df[~df["query"].str.contains(query_exclude_value, regex=True)]
+            elif query_exclude_type == "Doesn't match":
+                df = df[df["query"].str.contains(query_exclude_value, regex=True)]
 
         top_pages = df.groupby("page").agg({"clicks": "sum"}).reset_index()
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
