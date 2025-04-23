@@ -104,13 +104,15 @@ if st.button("📊 Fetch and Generate Keywords"):
             bulk_prompt += "\nPrimary: \nSecondary: \n\n"
 
         try:
-    response = client.chat.completions.create(
-        model="gpt-3.5-turbo",  # switched to 3.5
-        messages=[{"role": "user", "content": bulk_prompt}]
-    )
-    bulk_result = response.choices[0].message.content.strip()
-except Exception as e:
-    bulk_result = f"❌ Error during OpenAI request: {e}"
+            response = client.chat.completions.create(
+            model="gpt-3.5-turbo",  # switched to 3.5
+            messages=[{"role": "user", "content": bulk_prompt}]
+            )
+            
+            bulk_result = response.choices[0].message.content.strip()
+            
+       except Exception as e:
+            bulk_result = f"❌ Error during OpenAI request: {e}"
 
 
     st.subheader("📋 AI-Generated Keywords")
