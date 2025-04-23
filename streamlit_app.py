@@ -73,7 +73,8 @@ if code_input and "account" not in st.session_state:
         st.exception(e)
         st.stop()
 if "account" in st.session_state:
-@st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False)
+
 def get_sites(account):
     return account.service.sites().list().execute()
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
