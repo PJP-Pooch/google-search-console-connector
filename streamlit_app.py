@@ -61,19 +61,19 @@ page_filter_value = st.sidebar.text_input("Page filter value", "/products")
 st.sidebar.markdown("### 🔍 Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
 query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
-    # Date range presets
-    timescale = st.selectbox("Date range", [
-        "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
-    ])
-    if timescale == "Last 7 days":
-        days = -7
-    elif timescale == "Last 28 days":
-        days = -28
-    elif timescale == "Last 3 months":
-        days = -90
-    elif timescale == "Last 12 months":
-        days = -365
-    if st.button("📊 Fetch and Generate Keywords"):
+# Date range presets
+timescale = st.selectbox("Date range", [
+    "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
+])
+if timescale == "Last 7 days":
+    days = -7
+elif timescale == "Last 28 days":
+    days = -28
+elif timescale == "Last 3 months":
+    days = -90
+elif timescale == "Last 12 months":
+    days = -365
+if st.button("📊 Fetch and Generate Keywords"):
     with st.spinner("⚙️ Generating keywords..."):
         webproperty = account[selected_site]
         df = (
@@ -116,56 +116,56 @@ query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
         )
         st.subheader("🔍 Preview: Top Queries by Page")
         st.dataframe(top_queries.head(50))
-        # 🔄 Use OpenAI GPT to assign primary and secondary keywords
-        def chunk_pages(pages, chunk_size=25):
-            for i in range(0, len(pages), chunk_size):
-                yield pages[i:i+chunk_size]
-        # Prepare page:queries dict
-        page_queries = {}
-        for page, group in top_queries.groupby("page"):
-            queries = group.sort_values(by=["clicks", "impressions"], ascending=False)["query"].head(5).tolist()
-            page_queries[page] = queries
-        gpt_results = []
-        for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
-            prompt = "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"
-            for page, queries in chunk:
-                prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
-            try:
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                gpt_results.append(response.choices[0].message.content.strip())
-            except Exception as e:
-                st.error(f"❌ GPT error in chunk {i+1}: {e}")
-                continue
-        # Parse GPT result into DataFrame
-        keyword_rows = []
-        for chunk in gpt_results:
-            for line in chunk.split("\n"):
-                if line.strip().startswith("Page:"):
-                    page = line.replace("Page:", "").strip()
-                elif line.strip().startswith("Primary:"):
-                    primary = line.replace("Primary:", "").strip()
-                elif line.strip().startswith("Secondary:"):
-                    secondary = line.replace("Secondary:", "").strip()
-                    keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-        df_keywords = pd.DataFrame(keyword_rows)
-        for page, group in top_queries.groupby("page"):
-            group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
-            primary = group_sorted.iloc[0]["query"] if not group_sorted.empty else ""
-            secondary = ""
-            for _, row in group_sorted.iterrows():
-                if row["query"] != primary:
-                    secondary = row["query"]
-                    break
-            keyword_rows.append({
-                "page": page,
-                "primary_keyword": primary,
-                "secondary_keyword": secondary,
-            })
-        df_keywords = pd.DataFrame(keyword_rows)
-        st.subheader("📋 Primary & Secondary Keywords")
-        st.dataframe(df_keywords)
-        csv = df_keywords.to_csv(index=False)
-        st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
+    # 🔄 Use OpenAI GPT to assign primary and secondary keywords
+    def chunk_pages(pages, chunk_size=25):
+        for i in range(0, len(pages), chunk_size):
+            yield pages[i:i+chunk_size]
+    # Prepare page:queries dict
+    page_queries = {}
+    for page, group in top_queries.groupby("page"):
+        queries = group.sort_values(by=["clicks", "impressions"], ascending=False)["query"].head(5).tolist()
+        page_queries[page] = queries
+    gpt_results = []
+    for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
+        prompt = "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"
+        for page, queries in chunk:
+            prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            gpt_results.append(response.choices[0].message.content.strip())
+        except Exception as e:
+            st.error(f"❌ GPT error in chunk {i+1}: {e}")
+            continue
+    # Parse GPT result into DataFrame
+    keyword_rows = []
+    for chunk in gpt_results:
+        for line in chunk.split("\n"):
+            if line.strip().startswith("Page:"):
+                page = line.replace("Page:", "").strip()
+            elif line.strip().startswith("Primary:"):
+                primary = line.replace("Primary:", "").strip()
+            elif line.strip().startswith("Secondary:"):
+                secondary = line.replace("Secondary:", "").strip()
+                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+    df_keywords = pd.DataFrame(keyword_rows)
+    for page, group in top_queries.groupby("page"):
+        group_sorted = group.sort_values(by=["clicks", "impressions"], ascending=False)
+        primary = group_sorted.iloc[0]["query"] if not group_sorted.empty else ""
+        secondary = ""
+        for _, row in group_sorted.iterrows():
+            if row["query"] != primary:
+                secondary = row["query"]
+                break
+        keyword_rows.append({
+            "page": page,
+            "primary_keyword": primary,
+            "secondary_keyword": secondary,
+        })
+    df_keywords = pd.DataFrame(keyword_rows)
+    st.subheader("📋 Primary & Secondary Keywords")
+    st.dataframe(df_keywords)
+    csv = df_keywords.to_csv(index=False)
+    st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
