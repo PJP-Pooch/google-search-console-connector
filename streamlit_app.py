@@ -7,8 +7,8 @@ from google_auth_oauthlib.flow import Flow
 from apiclient import discovery
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide", page_title="Top Queries + AI Keywords CSV", page_icon="🔍")
-st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Structured Output)")
+st.set_page_config(layout="wide", page_title="GSC AI Meta Generator", page_icon="🧠")
+st.title("🧠 GSC: Primary & Secondary Keywords + Meta Titles & Descriptions")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -73,7 +73,7 @@ start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
 # === Fetch and Generate
-if st.button("📊 Fetch and Generate Keywords"):
+if st.button("📊 Fetch and Generate Keywords & Meta"):
     with st.spinner("Fetching GSC data..."):
         webproperty = account[selected_site]
         df = (
@@ -94,40 +94,42 @@ if st.button("📊 Fetch and Generate Keywords"):
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
         df_filtered = df[df["page"].isin(top_100_pages)].copy()
 
-    st.success("✅ Data fetched. Starting AI keyword generation...")
+    st.success("✅ GSC data fetched. Generating primary and secondary keywords...")
 
-    # === Chunked OpenAI calls with structured parsing
+    # === Keyword Generation
     pages = list(df_filtered["page"].unique())
     chunks = [pages[i:i + 25] for i in range(0, len(pages), 25)]
-    rows = []
+    keyword_rows = []
 
     for i, chunk in enumerate(chunks):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
-        prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
+        prompt = (
+            "You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) "
+            "and a different secondary keyword (highest impressions).
 
-"""
+"
+        )
         for page, group in chunk_df.groupby("page"):
             top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
             query_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
-            prompt += (
-    f"Page: {page}\n"
-    f"{query_text}\n"
-    "Primary: \n"
-    "Secondary: \n\n"
-)
+            prompt += f"Page: {page}
+{query_text}
+Primary: 
+Secondary: 
 
+"
 
-        with st.spinner(f"Sending request for chunk {i+1}/{len(chunks)}..."):
+        with st.spinner(f"🔍 Generating keywords for chunk {i+1}/{len(chunks)}..."):
             try:
                 response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4",
                     messages=[{"role": "user", "content": prompt}]
                 )
                 result = response.choices[0].message.content.strip()
             except Exception as e:
-                result = f"❌ Error in chunk {i+1}: {e}"
+                st.error(f"❌ Error in chunk {i+1}: {e}")
+                continue
 
-        # === Parse results
         for block in result.split("Page: ")[1:]:
             lines = block.strip().splitlines()
             page = lines[0].strip()
@@ -137,13 +139,64 @@ if st.button("📊 Fetch and Generate Keywords"):
                     primary = line.split(":", 1)[1].strip()
                 elif line.lower().startswith("secondary:"):
                     secondary = line.split(":", 1)[1].strip()
-            rows.append({
+            keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+
+    df_keywords = pd.DataFrame(keyword_rows)
+    st.success("✅ Keywords generated. Generating meta titles and descriptions...")
+
+    # === Meta Title & Description Generation (chunked)
+    meta_rows = []
+    chunks = [df_keywords.iloc[i:i + 10] for i in range(0, len(df_keywords), 10)]
+
+    for i, chunk in enumerate(chunks):
+        meta_prompt = "For each page and keywords below, generate a meta title under 70 characters ending with '| Pooch & Mutt', and a meta description under 160 characters including both keywords and a CTA.
+
+"
+        for _, row in chunk.iterrows():
+            meta_prompt += (
+                f"Page: {row['page']}
+"
+                f"Primary: {row['primary_keyword']}
+"
+                f"Secondary: {row['secondary_keyword']}
+"
+                f"Title: 
+"
+                f"Description: 
+
+"
+            )
+
+        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}..."):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-4",
+                    messages=[{"role": "user", "content": meta_prompt}]
+                )
+                result = response.choices[0].message.content.strip()
+            except Exception as e:
+                st.error(f"❌ Error in meta chunk {i+1}: {e}")
+                continue
+
+        for block in result.split("Page: ")[1:]:
+            lines = block.strip().splitlines()
+            page = lines[0].strip()
+            title = description = ""
+            for line in lines:
+                if line.lower().startswith("title:"):
+                    title = line.split(":", 1)[1].strip()
+                elif line.lower().startswith("description:"):
+                    description = line.split(":", 1)[1].strip()
+            meta_rows.append({
                 "page": page,
-                "primary_keyword": primary,
-                "secondary_keyword": secondary
+                "meta_title": title,
+                "meta_description": description
             })
 
-    df_output = pd.DataFrame(rows)
-    st.subheader("📋 Structured Keyword Output")
-    st.dataframe(df_output)
-    st.download_button("📥 Download CSV", df_output.to_csv(index=False), "ai_keywords.csv", "text/csv")
+    df_meta = pd.DataFrame(meta_rows)
+    final_df = pd.merge(df_keywords, df_meta, on="page", how="left")
+
+    st.subheader("📝 Preview Meta Titles & Descriptions")
+    st.dataframe(final_df)
+
+    st.download_button("📥 Download CSV", final_df.to_csv(index=False), "meta_keywords_output.csv", "text/csv")
