@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import searchconsole
+from google_auth_oauthlib.flow import Flow
+from apiclient.discovery import build
+from openai import OpenAI
 
 # Initialize session state for filters
 if "page_filter_value" not in st.session_state:
@@ -36,11 +39,6 @@ def apply_query_filter(df, filter_type, filter_value):
         return df[df["query"].str.match(filter_value)]
     return df
 
-from google_auth_oauthlib.flow import Flow
-from apiclient.discovery import build
-import openai
-from openai import OpenAI
-
 st.title("🔐 GSC Keyword Extractor (Manual Auth Flow)")
 
 # Load OAuth credentials
@@ -64,7 +62,6 @@ flow = Flow.from_client_config(
 )
 
 auth_url, _ = flow.authorization_url(prompt="consent")
-
 st.markdown("### Step 1: Sign in with Google")
 st.markdown(f"[🔗 Click here to authorize with Google]({auth_url})", unsafe_allow_html=True)
 
@@ -86,14 +83,10 @@ if code_input and "account" not in st.session_state:
         st.stop()
 
 if "account" in st.session_state:
-    # Get sites without caching the account object which isn't hashable
-    account = st.session_state["account"]
-    
-    @st.cache_data(show_spinner=False)
-    def get_sites():
+    def get_sites(account):
         return account.service.sites().list().execute()
     
-    site_list = get_sites()
+    site_list = get_sites(st.session_state["account"])
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
     selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
     
@@ -129,7 +122,7 @@ if "account" in st.session_state:
     
     if st.button("📊 Fetch GSC Data"):
         with st.spinner("Fetching from Google Search Console..."):
-            webproperty = account[selected_site]
+            webproperty = st.session_state["account"][selected_site]
             df = (
                 webproperty.query.range("today", days=days)
                 .dimension("page", "query")
@@ -137,6 +130,7 @@ if "account" in st.session_state:
                 .to_dataframe()
             )
             
+            # Apply filters using the proper functions
             df = apply_page_filter(df, page_filter_type, page_filter_value)
             df = apply_query_filter(df, query_filter_type, query_filter_value)
             
@@ -158,66 +152,76 @@ if "account" in st.session_state:
             if not openai_api_key:
                 st.warning("Please enter your OpenAI API Key to generate keywords.")
                 st.stop()
-            
-            client = OpenAI(api_key=openai_api_key)
-            df = st.session_state["gsc_data"]
-            
-            top_queries = (
-                df.groupby("page")
-                .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(5))
-                .reset_index(drop=True)
-            )
-            
-            # GPT chunking logic
-            def chunk_pages(pages, chunk_size=25):
-                for i in range(0, len(pages), chunk_size):
-                    yield pages[i:i+chunk_size]
-            
-            # Prepare page:queries dict
-            page_queries = {}
-            for page, group in top_queries.groupby("page"):
-                queries = group["query"].tolist()
-                page_queries[page] = queries
-            
-            gpt_results = []
-            for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
-                prompt = "You are an SEO expert. For each page below, choose the best primary keyword (the one with highest clicks) and a secondary keyword (a different one with the highest impressions).\n\n"
-                for page, queries in chunk:
-                    prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
                 
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": prompt}]
-                    )
-                    gpt_results.append(response.choices[0].message.content.strip())
-                except Exception as e:
-                    st.error(f"❌ GPT error in chunk {i+1}: {e}")
-                    continue
-            
-            # Parse GPT result into DataFrame
-            keyword_rows = []
-            for chunk in gpt_results:
+            with st.spinner("Generating keywords using OpenAI..."):
+                client = OpenAI(api_key=openai_api_key)
+                df = st.session_state["gsc_data"]
+                
+                top_queries = (
+                    df.groupby("page")
+                    .apply(lambda g: g.sort_values(by=["clicks", "impressions"], ascending=False).head(5))
+                    .reset_index(drop=True)
+                )
+                
+                # GPT chunking logic
+                def chunk_pages(pages, chunk_size=25):
+                    for i in range(0, len(pages), chunk_size):
+                        yield pages[i:i+chunk_size]
+                
+                # Prepare page:queries dict
+                page_queries = {}
+                for page, group in top_queries.groupby("page"):
+                    queries = group["query"].tolist()
+                    page_queries[page] = queries
+                
+                gpt_results = []
+                for i, chunk in enumerate(chunk_pages(list(page_queries.items()))):
+                    prompt = "You are an SEO expert. For each page below, choose the best primary keyword (the one with highest clicks) and a secondary keyword (a different one with the highest impressions).\n\n"
+                    for page, queries in chunk:
+                        prompt += f"Page: {page}\nTop Queries: {', '.join(queries)}\n\n"
+                    
+                    try:
+                        response = client.chat.completions.create(
+                            model="gpt-3.5-turbo",
+                            messages=[{"role": "user", "content": prompt}]
+                        )
+                        gpt_results.append(response.choices[0].message.content.strip())
+                    except Exception as e:
+                        st.error(f"❌ GPT error in chunk {i+1}: {e}")
+                        continue
+                
+                # Parse GPT result into DataFrame
+                keyword_rows = []
                 page = None
                 primary = None
                 secondary = None
-                for line in chunk.split("\n"):
-                    if line.strip().startswith("Page:"):
-                        if page is not None and primary is not None and secondary is not None:
-                            keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-                        page = line.replace("Page:", "").strip()
-                        primary = None
-                        secondary = None
-                    elif line.strip().startswith("Primary:"):
-                        primary = line.replace("Primary:", "").strip()
-                    elif line.strip().startswith("Secondary:"):
-                        secondary = line.replace("Secondary:", "").strip()
-                        keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
-            
-            df_keywords = pd.DataFrame(keyword_rows)
-            
-            st.subheader("📋 Primary & Secondary Keywords")
-            st.dataframe(df_keywords)
-            
-            csv = df_keywords.to_csv(index=False)
-            st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
+                
+                for chunk in gpt_results:
+                    for line in chunk.split("\n"):
+                        if line.strip().startswith("Page:"):
+                            if page and primary and secondary:
+                                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+                            page = line.replace("Page:", "").strip()
+                            primary = None
+                            secondary = None
+                        elif line.strip().startswith("Primary:"):
+                            primary = line.replace("Primary:", "").strip()
+                        elif line.strip().startswith("Secondary:"):
+                            secondary = line.replace("Secondary:", "").strip()
+                            if page and primary and secondary:
+                                keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+                                page = None
+                                primary = None
+                                secondary = None
+                
+                # Add the last entry if it exists
+                if page and primary and secondary:
+                    keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
+                
+                df_keywords = pd.DataFrame(keyword_rows)
+                
+                st.subheader("📋 Primary & Secondary Keywords")
+                st.dataframe(df_keywords)
+                
+                csv = df_keywords.to_csv(index=False)
+                st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
