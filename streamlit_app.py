@@ -6,8 +6,8 @@ from google_auth_oauthlib.flow import Flow
 from apiclient import discovery
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide", page_title="Top Queries + AI Keywords", page_icon="🔍")
-st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Top 5 / Chunked)")
+st.set_page_config(layout="wide", page_title="Top Queries + AI Keywords CSV", page_icon="🔍")
+st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Structured Output)")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -71,7 +71,7 @@ days_map = {"Last 7 days": 7, "Last 28 days": 28, "Last 3 months": 91}
 start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
-# === Fetch GSC + Chunked OpenAI Calls
+# === Fetch and AI keyword generation
 if st.button("📊 Fetch and Generate Keywords"):
     with st.spinner("Fetching GSC data..."):
         webproperty = account[selected_site]
@@ -91,36 +91,4 @@ if st.button("📊 Fetch and Generate Keywords"):
 
         top_pages = df.groupby("page").agg({"clicks": "sum"}).reset_index()
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
-        df_filtered = df[df["page"].isin(top_100_pages)].copy()
-
-    st.success("✅ Data fetched. Starting AI keyword generation in chunks...")
-
-    # === Chunk and process (limit top 5 queries per page)
-    pages = list(df_filtered["page"].unique())
-    chunks = [pages[i:i + 25] for i in range(0, len(pages), 25)]
-    all_results = ""
-
-    for i, chunk in enumerate(chunks):
-        chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
-        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
-
-"""
-        for page, group in chunk_df.groupby("page"):
-            top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
-            q_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
-            bulk_prompt += f"Page: {page}\n{q_text}\nPrimary: \nSecondary: \n\n"
-
-        with st.spinner(f"Calling OpenAI for chunk {i+1} of {len(chunks)}..."):
-            try:
-                response = client.chat.completions.create(
-                    model="gpt-3.5-turbo",
-                    messages=[{"role": "user", "content": bulk_prompt}]
-                )
-                chunk_result = response.choices[0].message.content.strip()
-            except Exception as e:
-                chunk_result = f"❌ Error in chunk {i+1}: {e}"
-            all_results += f"\n\n--- Chunk {i+1} ---\n{chunk_result}"
-
-    st.subheader("📋 AI-Generated Keywords (All Chunks Combined)")
-    st.text_area("Results", all_results, height=700)
-    st.download_button("📥 Download TXT", all_results, "ai_keywords_top5_chunked.txt", "text/plain")
+        df_filtered = df[df["page"].isin_
