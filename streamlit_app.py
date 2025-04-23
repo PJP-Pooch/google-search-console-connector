@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import searchconsole
+st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 from google_auth_oauthlib.flow import Flow
 from apiclient.discovery import build
 import openai
@@ -10,7 +11,6 @@ if not openai_api_key:
     st.warning("Please enter your OpenAI API Key to proceed.")
     st.stop()
 openai.api_key = openai_api_key
-st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 st.title("🔐 GSC Keyword Extractor (Manual Auth Flow)")
 # Load OAuth credentials
 client_id = st.secrets["installed"]["client_id"]
@@ -61,19 +61,19 @@ page_filter_value = st.sidebar.text_input("Page filter value", "/products")
 st.sidebar.markdown("### 🔍 Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
 query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
-# Date range presets
-timescale = st.selectbox("Date range", [
-    "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
-])
-if timescale == "Last 7 days":
-    days = -7
-elif timescale == "Last 28 days":
-    days = -28
-elif timescale == "Last 3 months":
-    days = -90
-elif timescale == "Last 12 months":
-    days = -365
-if st.button("📊 Fetch and Generate Keywords"):
+    # Date range presets
+    timescale = st.selectbox("Date range", [
+        "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
+    ])
+    if timescale == "Last 7 days":
+        days = -7
+    elif timescale == "Last 28 days":
+        days = -28
+    elif timescale == "Last 3 months":
+        days = -90
+    elif timescale == "Last 12 months":
+        days = -365
+    if st.button("📊 Fetch and Generate Keywords"):
     with st.spinner("⚙️ Generating keywords..."):
         webproperty = account[selected_site]
         df = (
@@ -116,11 +116,10 @@ if st.button("📊 Fetch and Generate Keywords"):
         )
         st.subheader("🔍 Preview: Top Queries by Page")
         st.dataframe(top_queries.head(50))
-    
-    # 🔄 Use OpenAI GPT to assign primary and secondary keywords
-    def chunk_pages(pages, chunk_size=25):
-        for i in range(0, len(pages), chunk_size):
-            yield pages[i:i+chunk_size]
+        # 🔄 Use OpenAI GPT to assign primary and secondary keywords
+        def chunk_pages(pages, chunk_size=25):
+            for i in range(0, len(pages), chunk_size):
+                yield pages[i:i+chunk_size]
         # Prepare page:queries dict
         page_queries = {}
         for page, group in top_queries.groupby("page"):
