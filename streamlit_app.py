@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openai import OpenAI
@@ -103,19 +102,11 @@ if st.button("📊 Fetch and Generate Keywords"):
 
     for i, chunk in enumerate(chunks):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
-        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
-
-"""
-
+        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"""
         for page, group in chunk_df.groupby("page"):
             sorted_q = group.sort_values(by=["clicks", "impressions"], ascending=False)
             q_text = sorted_q[["query", "clicks", "impressions"]].to_string(index=False)
-            bulk_prompt += f"Page: {page}
-{q_text}
-Primary: 
-Secondary: 
-
-"
+            bulk_prompt += f"Page: {page}\\n{q_text}\\nPrimary: \\nSecondary: \\n\\n"
 
         with st.spinner(f"Calling OpenAI for chunk {i+1} of {len(chunks)}..."):
             try:
@@ -126,10 +117,7 @@ Secondary:
                 chunk_result = response.choices[0].message.content.strip()
             except Exception as e:
                 chunk_result = f"❌ Error in chunk {i+1}: {e}"
-            all_results += f"
-
---- Chunk {i+1} ---
-{chunk_result}"
+            all_results += f"\n\n--- Chunk {i+1} ---\n{chunk_result}"
 
     st.subheader("📋 AI-Generated Keywords (All Chunks Combined)")
     st.text_area("Results", all_results, height=700)
