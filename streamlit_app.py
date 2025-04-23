@@ -178,6 +178,7 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
 
     # === Meta Title & Description Generation (chunked)
     meta_rows = []
+    df_meta = pd.DataFrame()  # <- Add this early
     chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 10)]
 
     for i, chunk in enumerate(chunks):
