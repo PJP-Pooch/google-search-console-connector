@@ -200,7 +200,7 @@ and a meta description under 160 characters including both keywords and a call t
 
             )
 
-        with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
+        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}"):
             try:
                 response = client.chat.completions.create(
                     model=meta_model,
