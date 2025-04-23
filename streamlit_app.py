@@ -235,7 +235,15 @@ and a meta description under 160 characters including both keywords and a call t
             })
 
     df_meta = pd.DataFrame(meta_rows)
+    # 💡 Safe merge with fallback if df_meta is missing or malformed
+if not df_meta.empty and "page" in df_meta.columns:
     final_df = pd.merge(df_keywords, df_meta, on="page", how="left")
+else:
+    st.warning("❌ Meta data was not generated properly — using keyword data only.")
+    final_df = df_keywords.copy()
+    final_df["meta_title"] = ""
+    final_df["meta_description"] = ""
+
 
     st.subheader("📝 Preview Meta Titles & Descriptions")
     st.dataframe(final_df)
