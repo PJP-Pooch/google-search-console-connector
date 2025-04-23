@@ -107,6 +107,7 @@ if st.button("📊 Fetch and Generate Keywords"):
 
 """
 
+
         for page, group in chunk_df.groupby("page"):
             top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
             query_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
