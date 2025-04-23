@@ -6,8 +6,8 @@ from google_auth_oauthlib.flow import Flow
 from apiclient import discovery
 from datetime import datetime, timedelta
 
-st.set_page_config(layout="wide", page_title="Top Queries with AI Keywords", page_icon="🔍")
-st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Chunked, GPT-3.5)")
+st.set_page_config(layout="wide", page_title="Top Queries + AI Keywords", page_icon="🔍")
+st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Top 5 / Chunked)")
 
 # === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
@@ -93,20 +93,22 @@ if st.button("📊 Fetch and Generate Keywords"):
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
         df_filtered = df[df["page"].isin(top_100_pages)].copy()
 
-    st.success("✅ Data fetched. Starting chunked AI keyword generation...")
+    st.success("✅ Data fetched. Starting AI keyword generation in chunks...")
 
-    # === Chunk and process
+    # === Chunk and process (limit top 5 queries per page)
     pages = list(df_filtered["page"].unique())
     chunks = [pages[i:i + 25] for i in range(0, len(pages), 25)]
     all_results = ""
 
     for i, chunk in enumerate(chunks):
         chunk_df = df_filtered[df_filtered["page"].isin(chunk)]
-        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).\n\n"""
+        bulk_prompt = """You are an SEO assistant. For each page below, return the best primary keyword (highest clicks) and a different secondary keyword (highest impressions).
+
+"""
         for page, group in chunk_df.groupby("page"):
-            sorted_q = group.sort_values(by=["clicks", "impressions"], ascending=False)
-            q_text = sorted_q[["query", "clicks", "impressions"]].to_string(index=False)
-            bulk_prompt += f"Page: {page}\\n{q_text}\\nPrimary: \\nSecondary: \\n\\n"
+            top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
+            q_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
+            bulk_prompt += f"Page: {page}\n{q_text}\nPrimary: \nSecondary: \n\n"
 
         with st.spinner(f"Calling OpenAI for chunk {i+1} of {len(chunks)}..."):
             try:
@@ -121,4 +123,4 @@ if st.button("📊 Fetch and Generate Keywords"):
 
     st.subheader("📋 AI-Generated Keywords (All Chunks Combined)")
     st.text_area("Results", all_results, height=700)
-    st.download_button("📥 Download TXT", all_results, "ai_keywords_bulk_chunked.txt", "text/plain")
+    st.download_button("📥 Download TXT", all_results, "ai_keywords_top5_chunked.txt", "text/plain")
