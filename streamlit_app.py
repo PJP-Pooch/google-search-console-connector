@@ -181,18 +181,29 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
     chunks = [df_keywords.iloc[i:i + 5] for i in range(0, len(df_keywords), 10)]
 
     for i, chunk in enumerate(chunks):
-        meta_prompt = """For each page and keywords below, generate a meta title under 70 characters ending with '| Pooch & Mutt', and a meta description under 160 characters including both keywords and a CTA."""
-        
+        meta_prompt = """
+For each page and keywords below, generate a meta title under 70 characters ending with '| Pooch & Mutt',
+and a meta description under 160 characters including both keywords and a call to action.
+"""
+
+
+"
         for _, row in chunk.iterrows():
             meta_prompt += (
-                f"Page: {row['page']}"
-                f"Primary: {row['primary_keyword']}"
-                f"Secondary: {row['secondary_keyword']}"
-                f"Title:"
-                f"Description: "
+                f"Page: {row['page']}
+"
+                f"Primary: {row['primary_keyword']}
+"
+                f"Secondary: {row['secondary_keyword']}
+"
+                f"Title: 
+"
+                f"Description: 
+
+"
             )
 
-        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}"):
+        with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
             try:
                 response = client.chat.completions.create(
                     model=meta_model,
