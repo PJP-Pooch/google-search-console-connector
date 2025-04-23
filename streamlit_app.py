@@ -211,6 +211,7 @@ and a meta description under 160 characters including both keywords and a call t
                         model=meta_model,
                         messages=[{"role": "user", "content": meta_prompt}]  # ✅ CORRECT
                     )
+                    st.text_area(f"🧪 Raw GPT Output for chunk {i+1}", result, height=300)
                     result = response.choices[0].message.content.strip()
                 except Exception as e2:
                     st.error(f"❌ Final failure in meta chunk {i+1}: {e2}")
