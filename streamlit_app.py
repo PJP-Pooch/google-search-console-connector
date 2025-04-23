@@ -91,4 +91,5 @@ if st.button("📊 Fetch and Generate Keywords"):
 
         top_pages = df.groupby("page").agg({"clicks": "sum"}).reset_index()
         top_100_pages = top_pages.sort_values("clicks", ascending=False).head(100)["page"]
-        df_filtered = df[df["page"].isin_
+        df_filtered = df[df["page"].isin(top_100_pages)].copy()
+
