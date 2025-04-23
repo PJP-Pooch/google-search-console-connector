@@ -109,12 +109,13 @@ if st.button("📊 Fetch and Generate Keywords"):
         for page, group in chunk_df.groupby("page"):
             top_queries = group.sort_values(by=["clicks", "impressions"], ascending=False).head(5)
             query_text = top_queries[["query", "clicks", "impressions"]].to_string(index=False)
-            prompt += f"Page: {page}
-{query_text}
-Primary: 
-Secondary: 
+            prompt += (
+    f"Page: {page}\n"
+    f"{query_text}\n"
+    "Primary: \n"
+    "Secondary: \n\n"
+)
 
-"
 
         with st.spinner(f"Sending request for chunk {i+1}/{len(chunks)}..."):
             try:
