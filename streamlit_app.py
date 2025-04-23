@@ -173,6 +173,21 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
                     secondary = line.split(":", 1)[1].strip()
             keyword_rows.append({"page": page, "primary_keyword": primary, "secondary_keyword": secondary})
 
-    final_df = pd.DataFrame(keyword_rows)
+    
+# ✅ Apply page filter BEFORE grouping
+if page_filter_value:
+    if page_filter_type == "contains":
+        df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
+    elif page_filter_type == "starts with":
+        df = df[df["page"].str.startswith(page_filter_value)]
+    elif page_filter_type == "ends with":
+        df = df[df["page"].str.endswith(page_filter_value)]
+    elif page_filter_type == "regex match":
+        df = df[df["page"].str.match(page_filter_value)]
 
-    st.download_button("📥 Download CSV", final_df.to_csv(index=False), "output.csv", "text/csv")
+df_keywords = pd.DataFrame(keyword_rows)
+
+st.success("✅ Primary and secondary keywords generated.")
+st.dataframe(df_keywords)
+csv = df_keywords.to_csv(index=False)
+st.download_button("📥 Download CSV", csv, "keywords.csv", "text/csv")
