@@ -1,12 +1,12 @@
+import streamlit as st
+import pandas as pd
+import searchconsole
+
 # Initialize session state for filters
 if "page_filter_value" not in st.session_state:
     st.session_state["page_filter_value"] = ""
 if "query_filter_value" not in st.session_state:
     st.session_state["query_filter_value"] = ""
-
-import streamlit as st
-import pandas as pd
-import searchconsole
 
 st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 
