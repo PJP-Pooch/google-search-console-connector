@@ -35,28 +35,42 @@ flow = Flow.from_client_config(
 )
 auth_url, _ = flow.authorization_url(prompt="consent")
 
-# === Google Sign-In Flow ===
-query_params = st.query_params
-code = query_params.get("code", [None])[0]
+# === Manual OAuth Flow ===
+st.markdown("## 🔐 Google Authentication")
 
-if code and "account" not in st.session_state:
+if "manual_auth_code" not in st.session_state:
+    st.session_state.manual_auth_code = ""
+
+flow = Flow.from_client_config(
+    credentials,
+    scopes=["https://www.googleapis.com/auth/webmasters.readonly"],
+    redirect_uri=redirect_uri,
+)
+auth_url, _ = flow.authorization_url(prompt="consent")
+
+st.markdown(f"🔗 [Click here to authenticate with Google]({auth_url})")
+st.caption("After signing in, you'll be redirected to a broken page. Copy the `code` from the URL and paste it below:")
+
+auth_code = st.text_input("Paste your authorization code here")
+submit_code = st.button("Submit Code")
+
+if submit_code and auth_code:
     try:
-        flow.fetch_token(code=code)
+        flow.fetch_token(code=auth_code)
         credentials = flow.credentials
         service = discovery.build("webmasters", "v3", credentials=credentials)
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
-        st.experimental_set_query_params()  # Clear ?code=... from URL
-        st.experimental_rerun()  # trigger a clean page reload
+        st.success("✅ Successfully authenticated with Google!")
+        st.experimental_rerun()
     except Exception as e:
-        st.error("❌ Google auth failed. Please try again.")
+        st.error("❌ Google auth failed. Please double-check the code and try again.")
         st.exception(e)
         st.stop()
 
-# If no token yet, prompt user to sign in
 if "account" not in st.session_state:
-    st.markdown(f"[🔐 Sign in with Google]({auth_url})", unsafe_allow_html=True)
     st.stop()
+
 
 # === Property Selection ===
 account = st.session_state["account"]
