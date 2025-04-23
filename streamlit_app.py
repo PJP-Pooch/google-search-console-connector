@@ -69,6 +69,8 @@ site_list = account.service.sites().list().execute()
 site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
 selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
 
+exec(open("gsc_controls.py").read())
+
 # === Date Selection ===
 col1, col2 = st.columns(2)
 with col1:
