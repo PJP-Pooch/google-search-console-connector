@@ -91,13 +91,10 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
     with st.spinner("Fetching GSC data..."):
         webproperty = account[selected_site]
         df = (
-            webproperty.query
-            .range(str(start_date.date()), str(end_date.date()))
-            .dimension("page", "query")
-            .search_type("web")
-            .limit(5000)
-            .get()
-            .to_dataframe()
+        webproperty.query.range(str(start_date), str(end_date))
+        .dimension("page", "query")
+        .get()
+        .to_dataframe()
         )
 
         if df.empty:
