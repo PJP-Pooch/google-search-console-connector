@@ -45,7 +45,6 @@ if code_input and "account" not in st.session_state:
         service = build("webmasters", "v3", credentials=credentials)
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
-        st.success("✅ Google authentication successful!")
         st.rerun()
     except Exception as e:
         st.error("❌ Authentication failed. Please check your code.")
@@ -58,28 +57,67 @@ if "account" in st.session_state:
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
     selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
 
-    page_filter_value = st.sidebar.text_input("Filter Pages (contains)", "/products")
-    query_filter_value = st.sidebar.text_input("Exclude Queries Containing", "pooch")
+    
+# ✅ Advanced Page Filter Options
+st.sidebar.markdown("### 🔍 Page Filter")
+page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
+page_filter_value = st.sidebar.text_input("Page filter value", "/products")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Start Date")
-    with col2:
-        end_date = st.date_input("End Date")
+# ✅ Advanced Query Filter Options
+st.sidebar.markdown("### 🔍 Query Filter")
+query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn’t match regex"])
+query_filter_value = st.sidebar.text_input("Query filter value", "pooch")
+
+
+    # Date range presets
+    timescale = st.selectbox("Date range", [
+        "Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"
+    ])
+    if timescale == "Last 7 days":
+        days = -7
+    elif timescale == "Last 28 days":
+        days = -28
+    elif timescale == "Last 3 months":
+        days = -90
+    elif timescale == "Last 12 months":
+        days = -365
 
     if st.button("📊 Fetch and Generate Keywords"):
         webproperty = account[selected_site]
         df = (
-            webproperty.query.range(str(start_date), str(end_date))
+            webproperty.query.range("today", days=days)
             .dimension("page", "query")
             .get()
             .to_dataframe()
         )
 
+        
+        # ✅ Apply page filter
         if page_filter_value:
-            df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
+            if page_filter_type == "contains":
+                df = df[df["page"].str.contains(page_filter_value, case=False, na=False)]
+            elif page_filter_type == "starts with":
+                df = df[df["page"].str.startswith(page_filter_value)]
+            elif page_filter_type == "ends with":
+                df = df[df["page"].str.endswith(page_filter_value)]
+            elif page_filter_type == "regex match":
+                df = df[df["page"].str.match(page_filter_value)]
+            elif page_filter_type == "doesn’t match regex":
+                df = df[~df["page"].str.match(page_filter_value)]
+
+        # ✅ Apply query filter
         if query_filter_value:
-            df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
+            if query_filter_type == "contains":
+                df = df[~df["query"].str.contains(query_filter_value, case=False, na=False)]
+            elif query_filter_type == "starts with":
+                df = df[~df["query"].str.startswith(query_filter_value)]
+            elif query_filter_type == "ends with":
+                df = df[~df["query"].str.endswith(query_filter_value)]
+            elif query_filter_type == "regex match":
+                df = df[~df["query"].str.match(query_filter_value)]
+            elif query_filter_type == "doesn’t match regex":
+                df = df[df["query"].str.match(query_filter_value)]
+
 
         if df.empty:
             st.warning("No data returned. Adjust your filters.")
