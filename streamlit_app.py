@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import openai
+from openai import OpenAI
 import searchconsole
 from google_auth_oauthlib.flow import Flow
 from apiclient import discovery
@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 st.set_page_config(layout="wide", page_title="Top Queries with AI Keywords", page_icon="🔍")
 st.title("🔍 GSC: Top Queries + AI Primary & Secondary Keywords (Bulk Mode)")
 
-# === Google OAuth ===
+# === Google OAuth Setup ===
 client_id = str(st.secrets["installed"]["client_id"])
 client_secret = str(st.secrets["installed"]["client_secret"])
 redirect_uri = str(st.secrets["installed"]["redirect_uris"][0])
@@ -53,12 +53,12 @@ if submit_code and auth_code:
 if "account" not in st.session_state:
     st.stop()
 
-# === OpenAI Key
+# === OpenAI Key (new client)
 openai_key = st.sidebar.text_input("🔑 OpenAI API Key", type="password")
 if not openai_key:
     st.warning("Please enter your OpenAI API Key to continue.")
     st.stop()
-openai.api_key = openai_key
+client = OpenAI(api_key=openai_key)
 
 # === GSC Property and Date Selection
 account = st.session_state["account"]
@@ -71,7 +71,7 @@ days_map = {"Last 7 days": 7, "Last 28 days": 28, "Last 3 months": 91}
 start_date = datetime.today() - timedelta(days=days_map[date_range])
 end_date = datetime.today()
 
-# === Fetch and Bulk AI Call
+# === Fetch GSC + Bulk Prompt
 if st.button("📊 Fetch and Generate Keywords"):
     with st.spinner("Fetching GSC data..."):
         webproperty = account[selected_site]
@@ -104,7 +104,7 @@ if st.button("📊 Fetch and Generate Keywords"):
             bulk_prompt += "\nPrimary: \nSecondary: \n\n"
 
         try:
-            response = openai.ChatCompletion.create(
+            response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": bulk_prompt}]
             )
