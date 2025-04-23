@@ -192,7 +192,7 @@ if st.button("📊 Fetch and Generate Keywords & Meta"):
                 f"Description: "
             )
 
-        with st.spinner(f\"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
+        with st.spinner(f"✍️ Generating meta content for chunk {i+1}/{len(chunks)}...\"):
             try:
                 response = client.chat.completions.create(
                     model=meta_model,
