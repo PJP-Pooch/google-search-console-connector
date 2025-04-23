@@ -35,20 +35,22 @@ auth_url, _ = flow.authorization_url(prompt="consent")
 
 # === Google Sign-In Flow ===
 query_params = st.query_params
-if "code" in query_params:
-    code = query_params["code"][0]
+code = query_params.get("code", [None])[0]
+
+if code and "account" not in st.session_state:
     try:
         flow.fetch_token(code=code)
         credentials = flow.credentials
         service = discovery.build("webmasters", "v3", credentials=credentials)
         account = searchconsole.account.Account(service, credentials)
         st.session_state["account"] = account
-        st.success("✅ Successfully authenticated with Google!")
-        st.experimental_rerun()
+        st.experimental_rerun()  # trigger a clean page reload
     except Exception as e:
         st.error("❌ Google auth failed. Please try again.")
         st.exception(e)
+        st.stop()
 
+# If no token yet, prompt user to sign in
 if "account" not in st.session_state:
     st.markdown(f"[🔐 Sign in with Google]({auth_url})", unsafe_allow_html=True)
     st.stop()
