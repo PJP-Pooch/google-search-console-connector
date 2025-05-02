@@ -193,10 +193,10 @@ if "account" in st.session_state:
                     csv_kw = st.session_state["keywords_data"].to_csv(index=False)
                     st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
 
-            st.markdown("### GSC data")
-            st.dataframe(df.head(50))
-            csv = df.to_csv(index=False)
-            st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
+                st.markdown("### GSC data")
+                st.dataframe(df.head(50))
+                csv = df.to_csv(index=False)
+                st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
     else:
         st.warning("No GSC properties found.")
