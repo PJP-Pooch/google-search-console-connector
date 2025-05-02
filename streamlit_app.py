@@ -5,6 +5,7 @@ from google_auth_oauthlib.flow import Flow
 from apiclient.discovery import build
 from openai import OpenAI
 import re
+from datetime import date, timedelta
 
 st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 
@@ -120,6 +121,7 @@ if "account" in st.session_state:
         with st.form("gsc_form"):
             selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
             timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
+            limit_rows = st.number_input("Max rows to fetch", min_value=10, max_value=5000, value=500, step=100)
             submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
 
         if submit_gsc:
@@ -127,12 +129,15 @@ if "account" in st.session_state:
             days = days_map[timescale]
             with st.spinner("Fetching from Google Search Console..."):
                 webproperty = st.session_state["account"][selected_site]
+                end_date = date.today()
+                start_date = end_date + timedelta(days=days)
+                
                 df = (
-                    webproperty.query.range("today", days=days)
+                    webproperty.query.range(start_date=start_date.isoformat(), end_date=end_date.isoformat())
                     .dimension("page", "query")
-                    .get()
+                    .get(limit=limit_rows)
                     .to_dataframe()
-                )
+                    )
                 df = apply_page_filter(df, page_filter_type, page_filter_value)
                 df = apply_query_filter(df, query_filter_type, query_filter_value)
 
