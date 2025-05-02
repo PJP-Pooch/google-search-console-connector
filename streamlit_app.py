@@ -125,31 +125,39 @@ if "account" in st.session_state:
 
     site_list = get_sites(st.session_state["account"])
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
-    selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
+with st.form("gsc_form"):
+selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
+timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
+submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
 
-    timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
+if "submit_gsc" not in st.session_state:
+    st.session_state.submit_gsc = False
+
+if submit_gsc:
+    st.session_state.submit_gsc = True
+
+if st.session_state.submit_gsc:
     days = {"Last 7 days": -7, "Last 28 days": -28, "Last 3 months": -90, "Last 12 months": -365}[timescale]
 
-    if st.button("📊 Fetch GSC Data"):
-        with st.spinner("Fetching from Google Search Console..."):
-            webproperty = st.session_state["account"][selected_site]
-            df = (
-                webproperty.query.range("today", days=days)
-                .dimension("page", "query")
-                .get()
-                .to_dataframe()
-            )
+    with st.spinner("Fetching from Google Search Console..."):
+        webproperty = st.session_state["account"][selected_site]
+        df = (
+            webproperty.query.range("today", days=days)
+            .dimension("page", "query")
+            .get()
+            .to_dataframe()
+        )
 
-            df = apply_page_filter(df, page_filter_type, page_filter_value)
-            df = apply_query_filter(df, query_filter_type, query_filter_value)
+        df = apply_page_filter(df, page_filter_type, page_filter_value)
+        df = apply_query_filter(df, query_filter_type, query_filter_value)
 
-            if df.empty:
-                st.warning("No data returned. Adjust your filters.")
-                st.stop()
+        if df.empty:
+            st.warning("No data returned. Adjust your filters.")
+            st.stop()
 
-            st.session_state["gsc_data"] = df
-            st.success("✅ GSC data fetched!")
-            st.dataframe(df.head(50))
+        st.session_state["gsc_data"] = df
+        st.success("✅ GSC data fetched!")
+        st.dataframe(df.head(50))
 
-            csv = df.to_csv(index=False)
-            st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
+        csv = df.to_csv(index=False)
+        st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
