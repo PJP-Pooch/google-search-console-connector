@@ -179,11 +179,11 @@ if "account" in st.session_state:
 
         # ✅ Show keyword extraction and data preview if available
         if "gsc_data" in st.session_state:
-            st.dataframe(df.head(50))
             st.markdown("### Step 2: Extract Keywords per Page")
 
             if st.button("🔎 Extract Keywords per Page"):
                 df = st.session_state["gsc_data"]
+                st.dataframe(df.head(50))
                 df_keywords = select_primary_secondary_keywords(df)
                 st.dataframe(df_keywords)
                 csv_kw = df_keywords.to_csv(index=False)
