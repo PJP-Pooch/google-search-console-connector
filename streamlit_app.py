@@ -138,7 +138,6 @@ if "account" in st.session_state:
         with st.form("gsc_form"):
             selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
             timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
-            limit_rows = st.number_input("Max rows to fetch", min_value=10, max_value=50000, value=10000, step=100)
             submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
 
         if submit_gsc:
@@ -154,7 +153,6 @@ if "account" in st.session_state:
                     .get()
                     .to_dataframe()
                 )
-                df = df.head(limit_rows)
                 df = apply_page_filter(df, page_filter_type, page_filter_value)
                 df = apply_query_filter(df, query_filter_type, query_filter_value)
 
@@ -170,7 +168,7 @@ if "account" in st.session_state:
 
         # ✅ Show keyword extraction and data preview if available
         if "gsc_data" in st.session_state:
-            st.markdown("### Step 3: Extract Keywords per Page")
+            st.markdown("### Step 2: Extract Keywords per Page")
 
             if st.button("🔎 Extract Keywords per Page"):
                 df = st.session_state["gsc_data"]
