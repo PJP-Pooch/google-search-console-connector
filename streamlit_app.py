@@ -181,17 +181,28 @@ if "account" in st.session_state:
         if "gsc_data" in st.session_state:
             st.markdown("### Step 2: Extract Keywords per Page")
 
-            if st.button("🔎 Extract Keywords per Page"):
+            if st.button("🔎 Extract Keywords"):
                 df = st.session_state["gsc_data"]
                 df_keywords = select_primary_secondary_keywords(df)
+                st.session_state["keywords_data"] = df_keywords
+                
                 st.dataframe(df_keywords)
                 csv_kw = df_keywords.to_csv(index=False)
                 st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
+            # ✅ Display/download outside the button
+            if "keywords_data" in st.session_state:
+                st.subheader("📋 Primary & Secondary Keywords")
+                st.dataframe(st.session_state["keywords_data"])
+                csv_kw = st.session_state["keywords_data"].to_csv(index=False)
+                st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
                 st.markdown("### GSC data")
+                st.session_state["gsc_data"] = df
                 st.dataframe(df.head(50))
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
-            
+
     else:
         st.warning("No GSC properties found.")
 
