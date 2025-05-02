@@ -5,6 +5,7 @@ from google_auth_oauthlib.flow import Flow
 from apiclient.discovery import build
 import openai
 from openai import OpenAI
+import re
 
 # Initialize session state for filters
 if "page_filter_value" not in st.session_state:
@@ -14,31 +15,44 @@ if "query_filter_value" not in st.session_state:
 
 st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
 
-def apply_page_filter(df, filter_type, filter_value):
+
+def safe_regex_match(series, pattern, invert=False):
+    try:
+        matched = series.str.match(pattern)
+        return ~matched if invert else matched
+    except re.error:
+        return pd.Series([False] * len(series))
+
+def apply_page_filter(df, filter_type, filter_values):
+    if not filter_values:
+        return df
     if filter_type == "contains":
-        return df[df["page"].str.contains(filter_value, case=False, na=False)]
+        return df[df["page"].str.contains('|'.join(map(re.escape, filter_values)), case=False, na=False)]
     elif filter_type == "starts with":
-        return df[df["page"].str.startswith(filter_value)]
+        return df[df["page"].str.startswith(tuple(filter_values))]
     elif filter_type == "ends with":
-        return df[df["page"].str.endswith(filter_value)]
+        return df[df["page"].str.endswith(tuple(filter_values))]
     elif filter_type == "regex match":
-        return df[df["page"].str.match(filter_value)]
+        return df[safe_regex_match(df["page"], '|'.join(filter_values))]
     elif filter_type == "doesn't match regex":
-        return df[~df["page"].str.match(filter_value)]
+        return df[safe_regex_match(df["page"], '|'.join(filter_values), invert=True)]
     return df
 
-def apply_query_filter(df, filter_type, filter_value):
+def apply_query_filter(df, filter_type, filter_values):
+    if not filter_values:
+        return df
     if filter_type == "contains":
-        return df[~df["query"].str.contains(filter_value, case=False, na=False)]
+        return df[df["query"].str.contains('|'.join(map(re.escape, filter_values)), case=False, na=False)]
     elif filter_type == "starts with":
-        return df[~df["query"].str.startswith(filter_value)]
+        return df[df["query"].str.startswith(tuple(filter_values))]
     elif filter_type == "ends with":
-        return df[~df["query"].str.endswith(filter_value)]
+        return df[df["query"].str.endswith(tuple(filter_values))]
     elif filter_type == "regex match":
-        return df[~df["query"].str.match(filter_value)]
+        return df[safe_regex_match(df["query"], '|'.join(filter_values))]
     elif filter_type == "doesn't match regex":
-        return df[df["query"].str.match(filter_value)]
+        return df[safe_regex_match(df["query"], '|'.join(filter_values), invert=True)]
     return df
+
 
 def chunk_dict(d, size):
     items = list(d.items())
@@ -97,13 +111,11 @@ if st.sidebar.button("🔁 Reset Filters"):
     st.session_state["page_filter_value"] = ""
     st.session_state["query_filter_value"] = ""
 
-page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
-page_filter_value = st.sidebar.text_input("Page filter value", st.session_state["page_filter_value"])
+page_filter_value = st.sidebar.text_input("Page filter value(s) (comma-separated)", st.session_state["page_filter_value"])
+query_filter_value = st.sidebar.text_input("Query filter value(s) (comma-separated)", st.session_state["query_filter_value"])
 
-# ✅ Advanced Query Filter Options
-st.sidebar.markdown("### 🔍 Query Filter")
-query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
-query_filter_value = st.sidebar.text_input("Query filter value", st.session_state["query_filter_value"])
+page_filter_values = [v.strip() for v in page_filter_value.split(",") if v.strip()]
+query_filter_values = [v.strip() for v in query_filter_value.split(",") if v.strip()]
 
 if "account" in st.session_state:
     def get_sites(account):
@@ -139,8 +151,9 @@ if "account" in st.session_state:
             )
             
             # Apply filters
-            df = apply_page_filter(df, page_filter_type, page_filter_value)
-            df = apply_query_filter(df, query_filter_type, query_filter_value)
+            df = apply_page_filter(df, page_filter_type, page_filter_values)
+            df = apply_query_filter(df, query_filter_type, query_filter_values)
+
             
             if df.empty:
                 st.warning("No data returned. Adjust your filters.")
