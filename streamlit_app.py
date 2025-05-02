@@ -125,6 +125,7 @@ if "account" in st.session_state:
 
     site_list = get_sites(st.session_state["account"])
     site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
+
 with st.form("gsc_form"):
     selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
     timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
