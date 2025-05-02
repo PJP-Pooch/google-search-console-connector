@@ -131,6 +131,7 @@ query_filter_value = st.sidebar.text_input("Query filter value(s)", key="query_f
 # Main logic
 if "account" in st.session_state:
     site_list = st.session_state["account"].service.sites().list().execute()
+
     if "siteEntry" in site_list:
         site_urls = [site["siteUrl"] for site in site_list["siteEntry"]]
 
@@ -167,22 +168,19 @@ if "account" in st.session_state:
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
-        else:
-            st.warning("No GSC properties found.")
-        
+        # ✅ Show keyword extraction and data preview if available
         if "gsc_data" in st.session_state:
             st.markdown("### Step 3: Extract Keywords per Page")
-        
+
             if st.button("🔎 Extract Keywords per Page"):
-                df = st.session_state["gsc_data"]  # <-- rehydrate df
+                df = st.session_state["gsc_data"]
                 df_keywords = select_primary_secondary_keywords(df)
                 st.dataframe(df_keywords)
                 csv_kw = df_keywords.to_csv(index=False)
                 st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
-        
-            # ✅ Also show the previously fetched GSC data even if button is clicked
+
             st.markdown("### Step 2: GSC Data Preview")
             st.dataframe(st.session_state["gsc_data"].head(50))
+    else:
+        st.warning("No GSC properties found.")
 
-        else:
-            st.warning("error")
