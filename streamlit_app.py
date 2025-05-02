@@ -7,7 +7,7 @@ from openai import OpenAI
 import re
 from datetime import date, timedelta
 
-st.set_page_config(page_title="GSC Poo Extractor", layout="wide")
+st.set_page_config(page_title="GSC Wee Extractor", layout="wide")
 
 # Session state defaults
 if "page_filter_value" not in st.session_state:
@@ -176,9 +176,7 @@ if "account" in st.session_state:
                 st.dataframe(df_keywords)
                 csv_kw = df_keywords.to_csv(index=False)
                 st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
-
-            st.markdown("### Step 3: GSC Data Preview")
-            st.dataframe(st.session_state["gsc_data"].head(50))
+            
     else:
         st.warning("No GSC properties found.")
 
