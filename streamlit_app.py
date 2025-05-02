@@ -186,17 +186,17 @@ if "account" in st.session_state:
                 df_keywords = select_primary_secondary_keywords(df)
                 st.session_state["keywords_data"] = df_keywords
 
-            # ✅ Display/download outside the button
-            if "keywords_data" in st.session_state:
-                st.subheader("📋 Primary & Secondary Keywords")
-                st.dataframe(st.session_state["keywords_data"])
-                csv_kw = st.session_state["keywords_data"].to_csv(index=False)
-                st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+                # ✅ Display/download outside the button
+                if "keywords_data" in st.session_state:
+                    st.subheader("📋 Primary & Secondary Keywords")
+                    st.dataframe(st.session_state["keywords_data"])
+                    csv_kw = st.session_state["keywords_data"].to_csv(index=False)
+                    st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
 
-                st.markdown("### GSC data")
-                st.dataframe(df.head(50))
-                csv = df.to_csv(index=False)
-                st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
+            st.markdown("### GSC data")
+            st.dataframe(df.head(50))
+            csv = df.to_csv(index=False)
+            st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
     else:
         st.warning("No GSC properties found.")
