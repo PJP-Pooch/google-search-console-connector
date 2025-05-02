@@ -7,7 +7,7 @@ from openai import OpenAI
 import re
 from datetime import date, timedelta
 
-st.set_page_config(page_title="GSC Keyword Extractor", layout="wide")
+st.set_page_config(page_title="GSC Poo Extractor", layout="wide")
 
 # Session state defaults
 if "page_filter_value" not in st.session_state:
