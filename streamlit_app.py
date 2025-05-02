@@ -84,7 +84,7 @@ def select_primary_secondary_keywords(df):
             "secondary_impressions": top_impression["impressions"]
         })
 
-    return pd.DataFrame(results)
+    return pd.DataFrame(results).sort_values(by="total_clicks", ascending=False)
 
 
 # OAuth config
