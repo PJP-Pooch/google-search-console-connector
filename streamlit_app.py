@@ -170,7 +170,7 @@ if "account" in st.session_state:
                 # Run keyword selector on demand
                 if st.button("🔎 Extract Keywords per Page"):
                     df_keywords = select_primary_secondary_keywords(df)
-                    st.dataframe(df_keywords)
+                    st.dataframe(df_keywords.head(50))
                     csv_kw = df_keywords.to_csv(index=False)
                     st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
     else:
