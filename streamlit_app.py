@@ -142,17 +142,22 @@ if "account" in st.session_state:
     if st.button("📊 Fetch GSC Data"):
         with st.spinner("Fetching from Google Search Console..."):
             webproperty = st.session_state["account"][selected_site]
-            
+    
             df = (
                 webproperty.query.range("today", days=days)
                 .dimension("page", "query")
                 .get()
                 .to_dataframe()
             )
-            
+    
+            # ✅ Make sure these come BEFORE the filter functions
+            page_filter_values = [v.strip() for v in page_filter_value.split(",") if v.strip()]
+            query_filter_values = [v.strip() for v in query_filter_value.split(",") if v.strip()]
+    
             # Apply filters
             df = apply_page_filter(df, page_filter_type, page_filter_values)
             df = apply_query_filter(df, query_filter_type, query_filter_values)
+
 
             
             if df.empty:
