@@ -133,7 +133,7 @@ if "account" in st.session_state:
                 start_date = end_date + timedelta(days=days)
                 
                 df = (
-                    webproperty.query.range(start_date=start_date.isoformat(), end_date=end_date.isoformat())
+                    webproperty.query..range(start_date.isoformat(), end_date.isoformat())
                     .dimension("page", "query")
                     .get(limit=limit_rows)
                     .to_dataframe()
