@@ -63,18 +63,29 @@ def chunk_dict(d, size):
 def select_primary_secondary_keywords(df):
     results = []
     for page, group in df.groupby("page"):
+        total_clicks = group["clicks"].sum()
+
         top_click = group.sort_values(by="clicks", ascending=False).iloc[0]
         group_excl_click = group[group["query"] != top_click["query"]]
+
         if not group_excl_click.empty:
             top_impression = group_excl_click.sort_values(by="impressions", ascending=False).iloc[0]
         else:
             top_impression = top_click
+
         results.append({
             "page": page,
+            "total_clicks": total_clicks,
             "primary_keyword": top_click["query"],
-            "secondary_keyword": top_impression["query"]
+            "primary_clicks": top_click["clicks"],
+            "primary_impressions": top_click["impressions"],
+            "secondary_keyword": top_impression["query"],
+            "secondary_clicks": top_impression["clicks"],
+            "secondary_impressions": top_impression["impressions"]
         })
+
     return pd.DataFrame(results)
+
 
 # OAuth config
 client_id = st.secrets["installed"]["client_id"]
@@ -168,6 +179,7 @@ if "account" in st.session_state:
 
         # ✅ Show keyword extraction and data preview if available
         if "gsc_data" in st.session_state:
+            st.dataframe(df.head(50))
             st.markdown("### Step 2: Extract Keywords per Page")
 
             if st.button("🔎 Extract Keywords per Page"):
