@@ -55,6 +55,24 @@ def apply_query_filter(df, filter_type, filter_value):
         return df[safe_regex_match(df["query"], '|'.join(values), invert=True)]
     return df
 
+
+def select_primary_secondary_keywords(df):
+    results = []
+    for page, group in df.groupby("page"):
+        top_click = group.sort_values(by="clicks", ascending=False).iloc[0]
+        group_excl_click = group[group["query"] != top_click["query"]]
+        if not group_excl_click.empty:
+            top_impression = group_excl_click.sort_values(by="impressions", ascending=False).iloc[0]
+        else:
+            top_impression = top_click
+        results.append({
+            "page": page,
+            "primary_keyword": top_click["query"],
+            "secondary_keyword": top_impression["query"]
+        })
+    return pd.DataFrame(results)
+
+
 def chunk_dict(d, size):
     items = list(d.items())
     for i in range(0, len(items), size):
@@ -152,5 +170,13 @@ if "account" in st.session_state:
                 st.dataframe(df.head(50))
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
+
+                 # Run keyword selector on demand
+                if st.button("🔎 Extract Top Keywords"):
+                    df_keywords = select_primary_secondary_keywords(df)
+                    st.dataframe(df_keywords)
+                    csv_kw = df_keywords.to_csv(index=False)
+                    st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
     else:
         st.warning("No GSC properties found.")
