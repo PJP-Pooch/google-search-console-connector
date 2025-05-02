@@ -185,10 +185,6 @@ if "account" in st.session_state:
                 df = st.session_state["gsc_data"]
                 df_keywords = select_primary_secondary_keywords(df)
                 st.session_state["keywords_data"] = df_keywords
-                
-                st.dataframe(df_keywords)
-                csv_kw = df_keywords.to_csv(index=False)
-                st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
 
             # ✅ Display/download outside the button
             if "keywords_data" in st.session_state:
@@ -198,7 +194,6 @@ if "account" in st.session_state:
                 st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
 
                 st.markdown("### GSC data")
-                st.session_state["gsc_data"] = df
                 st.dataframe(df.head(50))
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
