@@ -121,7 +121,6 @@ if "account" in st.session_state:
         with st.form("gsc_form"):
             selected_site = st.selectbox("🌐 Select GSC Property", site_urls)
             timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
-            limit_rows = st.number_input("Max rows to fetch", min_value=10, max_value=5000, value=500, step=100)
             submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
 
         if submit_gsc:
@@ -135,7 +134,7 @@ if "account" in st.session_state:
                 df = (
                     webproperty.query.range(start_date.isoformat(), end_date.isoformat())
                     .dimension("page", "query")
-                    .get(limit=limit_rows)
+                    .get()
                     .to_dataframe()
                     )
                 df = apply_page_filter(df, page_filter_type, page_filter_value)
