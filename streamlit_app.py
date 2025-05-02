@@ -167,11 +167,15 @@ if "account" in st.session_state:
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
-                # Run keyword selector on demand
-                if st.button("🔎 Extract Keywords per Page"):
-                    df_keywords = select_primary_secondary_keywords(df)
-                    st.dataframe(df_keywords.head(50))
-                    csv_kw = df_keywords.to_csv(index=False)
-                    st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
+                # ✅ Make keyword extraction available after data has been fetched
+                if "gsc_data" in st.session_state:
+                    st.markdown("### Step 3: Extract Keywords per Page")
+                    if st.button("🔎 Extract Keywords per Page"):
+                        df_keywords = select_primary_secondary_keywords(st.session_state["gsc_data"])
+                        st.dataframe(df_keywords)
+                        csv_kw = df_keywords.to_csv(index=False)
+                        st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
     else:
         st.warning("No GSC properties found.")
