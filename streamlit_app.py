@@ -107,7 +107,10 @@ if st.sidebar.button("🔁 Reset Filters"):
 # Sidebar filters
 st.sidebar.markdown("### Page Filter")
 page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
-page_filter_value = st.sidebar.text_input("Page filter value(s)", st.session_state["page_filter_value"])
+page_filter_value = st.sidebar.text_input("Page filter value(s)", key="page_filter_value")
+
+query_filter_value = st.sidebar.text_input("Query filter value(s)", key="query_filter_value")
+
 
 st.sidebar.markdown("### Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
