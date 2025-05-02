@@ -157,9 +157,9 @@ if "account" in st.session_state:
                     key="last_selected_site"
                 )
             
-            selected_site = st.session_state["last_selected_site"]
-            timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
-            submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
+                selected_site = st.session_state["last_selected_site"]
+                timescale = st.selectbox("Date range", ["Last 7 days", "Last 28 days", "Last 3 months", "Last 12 months"])
+                submit_gsc = st.form_submit_button("📊 Fetch GSC Data")
 
         if submit_gsc:
             days_map = {"Last 7 days": -7, "Last 28 days": -28, "Last 3 months": -90, "Last 12 months": -365}
