@@ -99,6 +99,11 @@ if code_input and "account" not in st.session_state:
         st.exception(e)
         st.stop()
 
+
+if st.sidebar.button("🔁 Reset Filters"):
+    st.session_state["page_filter_value"] = ""
+    st.session_state["query_filter_value"] = ""
+
 # Sidebar filters
 st.sidebar.markdown("### Page Filter")
 page_filter_type = st.sidebar.selectbox("Page filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
@@ -108,9 +113,6 @@ st.sidebar.markdown("### Query Filter")
 query_filter_type = st.sidebar.selectbox("Query filter type", ["contains", "starts with", "ends with", "regex match", "doesn't match regex"])
 query_filter_value = st.sidebar.text_input("Query filter value(s)", st.session_state["query_filter_value"])
 
-if st.sidebar.button("🔁 Reset Filters"):
-    st.session_state["page_filter_value"] = ""
-    st.session_state["query_filter_value"] = ""
 
 # Main logic
 if "account" in st.session_state:
