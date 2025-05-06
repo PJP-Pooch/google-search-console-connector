@@ -181,23 +181,23 @@ if "account" in st.session_state:
 
 
 
-        st.markdown("### 🔄 Send Data to n8n Webhook")
-        
-        webhook_url = st.text_input("Enter your n8n Webhook URL")
-        
-        if webhook_url:
-            if st.button("📤 Send to Webhook"):
-                try:
-                    payload = st.session_state["gsc_data"].to_dict(orient="records")
-                    response = requests.post(webhook_url, json=payload)
-                    if response.status_code == 200:
-                        st.success("✅ Data successfully sent to the webhook!")
-                    else:
-                        st.error(f"❌ Failed to send data. Status code: {response.status_code}")
-                        st.text(response.text)
-                except Exception as e:
-                    st.error("❌ An error occurred while sending data.")
-                    st.exception(e)
+            st.markdown("### 🔄 Send Data to n8n Webhook")
+            
+            webhook_url = st.text_input("Enter your n8n Webhook URL")
+            
+            if webhook_url:
+                if st.button("📤 Send to Webhook"):
+                    try:
+                        payload = st.session_state["gsc_data"].to_dict(orient="records")
+                        response = requests.post(webhook_url, json=payload)
+                        if response.status_code == 200:
+                            st.success("✅ Data successfully sent to the webhook!")
+                        else:
+                            st.error(f"❌ Failed to send data. Status code: {response.status_code}")
+                            st.text(response.text)
+                    except Exception as e:
+                        st.error("❌ An error occurred while sending data.")
+                        st.exception(e)
 
 
         # # ✅ Show keyword extraction and data preview if available
