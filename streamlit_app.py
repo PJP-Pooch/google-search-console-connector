@@ -6,6 +6,8 @@ from apiclient.discovery import build
 from openai import OpenAI
 import re
 from datetime import date, timedelta
+import requests
+import json
 
 st.set_page_config(page_title="GSC Wee Extractor", layout="wide")
 
@@ -60,31 +62,31 @@ def chunk_dict(d, size):
     for i in range(0, len(items), size):
         yield dict(items[i:i + size])
 
-def select_primary_secondary_keywords(df):
-    results = []
-    for page, group in df.groupby("page"):
-        total_clicks = group["clicks"].sum()
+# def select_primary_secondary_keywords(df):
+#     results = []
+#     for page, group in df.groupby("page"):
+#         total_clicks = group["clicks"].sum()
 
-        top_click = group.sort_values(by="clicks", ascending=False).iloc[0]
-        group_excl_click = group[group["query"] != top_click["query"]]
+#         top_click = group.sort_values(by="clicks", ascending=False).iloc[0]
+#         group_excl_click = group[group["query"] != top_click["query"]]
 
-        if not group_excl_click.empty:
-            top_impression = group_excl_click.sort_values(by="impressions", ascending=False).iloc[0]
-        else:
-            top_impression = top_click
+#         if not group_excl_click.empty:
+#             top_impression = group_excl_click.sort_values(by="impressions", ascending=False).iloc[0]
+#         else:
+#             top_impression = top_click
 
-        results.append({
-            "page": page,
-            "total_clicks": total_clicks,
-            "primary_keyword": top_click["query"],
-            "primary_clicks": top_click["clicks"],
-            "primary_impressions": top_click["impressions"],
-            "secondary_keyword": top_impression["query"],
-            "secondary_clicks": top_impression["clicks"],
-            "secondary_impressions": top_impression["impressions"]
-        })
+#         results.append({
+#             "page": page,
+#             "total_clicks": total_clicks,
+#             "primary_keyword": top_click["query"],
+#             "primary_clicks": top_click["clicks"],
+#             "primary_impressions": top_click["impressions"],
+#             "secondary_keyword": top_impression["query"],
+#             "secondary_clicks": top_impression["clicks"],
+#             "secondary_impressions": top_impression["impressions"]
+#         })
 
-    return pd.DataFrame(results).sort_values(by="total_clicks", ascending=False)
+#     return pd.DataFrame(results).sort_values(by="total_clicks", ascending=False)
 
 
 # OAuth config
@@ -177,26 +179,47 @@ if "account" in st.session_state:
                 csv = df.to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
-        # ✅ Show keyword extraction and data preview if available
-        if "gsc_data" in st.session_state:
-            st.markdown("### Step 2: Extract Keywords per Page")
 
-            if st.button("🔎 Extract Keywords"):
-                df = st.session_state["gsc_data"]
-                df_keywords = select_primary_secondary_keywords(df)
-                st.session_state["keywords_data"] = df_keywords
 
-                # ✅ Display/download outside the button
-                if "keywords_data" in st.session_state:
-                    st.subheader("📋 Primary & Secondary Keywords")
-                    st.dataframe(st.session_state["keywords_data"])
-                    csv_kw = st.session_state["keywords_data"].to_csv(index=False)
-                    st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+        st.markdown("### 🔄 Send Data to n8n Webhook")
+        
+        webhook_url = st.text_input("Enter your n8n Webhook URL")
+        
+        if webhook_url:
+            if st.button("📤 Send to Webhook"):
+                try:
+                    payload = st.session_state["gsc_data"].to_dict(orient="records")
+                    response = requests.post(webhook_url, json=payload)
+                    if response.status_code == 200:
+                        st.success("✅ Data successfully sent to the webhook!")
+                    else:
+                        st.error(f"❌ Failed to send data. Status code: {response.status_code}")
+                        st.text(response.text)
+                except Exception as e:
+                    st.error("❌ An error occurred while sending data.")
+                    st.exception(e)
 
-                st.markdown("### GSC data")
-                st.dataframe(df.head(50))
-                csv = df.to_csv(index=False)
-                st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
+
+        # # ✅ Show keyword extraction and data preview if available
+        # if "gsc_data" in st.session_state:
+        #     st.markdown("### Step 2: Extract Keywords per Page")
+
+        #     if st.button("🔎 Extract Keywords"):
+        #         df = st.session_state["gsc_data"]
+        #         df_keywords = select_primary_secondary_keywords(df)
+        #         st.session_state["keywords_data"] = df_keywords
+
+        #         # ✅ Display/download outside the button
+        #         if "keywords_data" in st.session_state:
+        #             st.subheader("📋 Primary & Secondary Keywords")
+        #             st.dataframe(st.session_state["keywords_data"])
+        #             csv_kw = st.session_state["keywords_data"].to_csv(index=False)
+        #             st.download_button("📥 Download Keywords CSV", csv_kw, "keywords.csv", "text/csv")
+
+        #         st.markdown("### GSC data")
+        #         st.dataframe(df.head(50))
+        #         csv = df.to_csv(index=False)
+        #         st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
     else:
         st.warning("No GSC properties found.")
