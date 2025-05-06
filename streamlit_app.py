@@ -149,19 +149,20 @@ if "account" in st.session_state:
                 st.session_state["gsc_data"] = df
                 st.success("✅ Data fetched!")
                 st.dataframe(df.head(50))
-                csv = df.to_csv(index=False)
+                csv = st.session_state["gsc_data"].to_csv(index=False)
                 st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
-                # Webhook section
-                st.markdown("### 🔄 Send Data to n8n Webhook")
-                webhook_url = st.text_input("Enter your n8n Webhook URL")
-                click_threshold = st.slider("Minimum Clicks to Include", min_value=1, max_value=100, value=1)
-
-                if webhook_url:
-                    df_filtered_clicks = df[df["clicks"] > click_threshold]
+                # ✅ Webhook section after data is fetched
+                if "gsc_data" in st.session_state:
+                    st.markdown("### 🔄 Send Data to n8n Webhook")
+                
+                    webhook_url = st.text_input("Enter your n8n Webhook URL")
+                    click_threshold = st.slider("Minimum Clicks to Include", min_value=1, max_value=100, value=1)
+                
+                    df_filtered_clicks = st.session_state["gsc_data"][st.session_state["gsc_data"]["clicks"] > click_threshold]
                     st.write(f"Filtered rows with clicks > {click_threshold}: {len(df_filtered_clicks)}")
-
-                    if st.button("📤 Send to Webhook"):
+                
+                    if webhook_url and st.button("📤 Send to Webhook"):
                         if df_filtered_clicks.empty:
                             st.warning("⚠️ No data with clicks above threshold to send.")
                         else:
@@ -176,5 +177,6 @@ if "account" in st.session_state:
                             except Exception as e:
                                 st.error("❌ An error occurred while sending data.")
                                 st.exception(e)
+
     else:
         st.warning("No GSC properties found.")
