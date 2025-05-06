@@ -16,6 +16,8 @@ if "page_filter_value" not in st.session_state:
     st.session_state["page_filter_value"] = ""
 if "query_filter_value" not in st.session_state:
     st.session_state["query_filter_value"] = ""
+if "webhook_url" not in st.session_state:
+    st.session_state["webhook_url"] = ""
 
 # Helper functions
 def safe_regex_match(series, pattern, invert=False):
@@ -148,40 +150,37 @@ if "account" in st.session_state:
 
                 st.session_state["gsc_data"] = df
                 st.success("✅ Data fetched!")
-                st.dataframe(df.head(50))
-                csv = st.session_state["gsc_data"].to_csv(index=False)
-                st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
-                # ✅ Webhook section after data is fetched
-                if "gsc_data" in st.session_state:
-                    # Store webhook URL in session_state to persist across reruns
-                    if "webhook_url" not in st.session_state:
-                        st.session_state["webhook_url"] = ""
-                    
-                    st.markdown("### 🔄 Send Data to n8n Webhook")
-                    
-                    st.text_input("Enter your n8n Webhook URL", key="webhook_url")
-                    click_threshold = st.slider("Minimum Clicks to Include", min_value=1, max_value=100, value=1)
-                    
-                    df_filtered_clicks = st.session_state["gsc_data"][st.session_state["gsc_data"]["clicks"] > click_threshold]
-                    st.write(f"Filtered rows with clicks > {click_threshold}: {len(df_filtered_clicks)}")
-                    
-                    if st.session_state["webhook_url"] and st.button("📤 Send to Webhook"):
-                        if df_filtered_clicks.empty:
-                            st.warning("⚠️ No data with clicks above threshold to send.")
-                        else:
-                            try:
-                                payload = df_filtered_clicks.to_dict(orient="records")
-                                response = requests.post(st.session_state["webhook_url"], json=payload)
-                                if response.status_code == 200:
-                                    st.success("✅ Data successfully sent to the webhook!")
-                                else:
-                                    st.error(f"❌ Failed to send data. Status code: {response.status_code}")
-                                    st.text(response.text)
-                            except Exception as e:
-                                st.error("❌ An error occurred while sending data.")
-                                st.exception(e)
+# Show data + webhook after fetch
+if "gsc_data" in st.session_state:
+    df = st.session_state["gsc_data"]
+    st.markdown("### 📊 Preview Data")
+    st.dataframe(df.head(50))
+    csv = df.to_csv(index=False)
+    st.download_button("📥 Download CSV", csv, "output.csv", "text/csv")
 
+    # Webhook section (persistent)
+    st.markdown("### 🔄 Send Data to n8n Webhook")
+    st.text_input("Enter your n8n Webhook URL", key="webhook_url")
+    click_threshold = st.slider("Minimum Clicks to Include", min_value=1, max_value=100, value=1)
 
-    else:
-        st.warning("No GSC properties found.")
+    df_filtered_clicks = df[df["clicks"] > click_threshold]
+    st.write(f"Filtered rows with clicks > {click_threshold}: {len(df_filtered_clicks)}")
+
+    if st.session_state["webhook_url"] and st.button("📤 Send to Webhook"):
+        if df_filtered_clicks.empty:
+            st.warning("⚠️ No data with clicks above threshold to send.")
+        else:
+            try:
+                payload = df_filtered_clicks.to_dict(orient="records")
+                response = requests.post(st.session_state["webhook_url"], json=payload)
+                if response.status_code == 200:
+                    st.success("✅ Data successfully sent to the webhook!")
+                else:
+                    st.error(f"❌ Failed to send data. Status code: {response.status_code}")
+                    st.text(response.text)
+            except Exception as e:
+                st.error("❌ An error occurred while sending data.")
+                st.exception(e)
+    elif not st.session_state["webhook_url"]:
+        st.info("ℹ️ Please enter a webhook URL to enable sending.")
